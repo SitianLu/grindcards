@@ -262,6 +262,20 @@ __pycache__/
 '''
 
 
+STARTER = Path(__file__).parent / "starter"
+
+
+def copy_starter(root: Path) -> list[str]:
+    """`grindcards init --starter`: the 20-card bilingual deck that ships with the package."""
+    import shutil
+    root = Path(root)
+    if root.exists() and any(root.iterdir()):
+        raise DeckError(f"{root} exists and is not empty")
+    shutil.copytree(STARTER, root, dirs_exist_ok=True,
+                    ignore=shutil.ignore_patterns("build", "__pycache__", "*.pyc"))
+    return sorted(str(p.relative_to(root)) for p in root.rglob("*") if p.is_file())
+
+
 def init_deck(root: Path, name: str, langs: list[str], default: str | None = None) -> list[str]:
     root = Path(root)
     if root.exists() and any(root.iterdir()):

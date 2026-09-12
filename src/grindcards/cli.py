@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """grindcards — build coding-interview flashcards from a deck directory.
 
-    grindcards init  mydeck [--lang en zh] [--name "My Deck"]
+    grindcards init  mydeck [--lang en zh] [--name "My Deck"] [--starter]
     grindcards verify [deck]
     grindcards build  [deck] [-o build/]        # offline web app + PWA files
     grindcards pdf    [deck] [-o build/] [--lang en]
@@ -51,10 +51,13 @@ def _verify(deck, quiet=False):
 
 
 def cmd_init(a):
-    from .scaffold import init_deck
+    from .scaffold import copy_starter, init_deck
     root = Path(a.deck)
     try:
-        written = init_deck(root, a.name or root.name, a.lang, a.default)
+        if a.starter:
+            written = copy_starter(root)
+        else:
+            written = init_deck(root, a.name or root.name, a.lang, a.default)
     except DeckError as ex:
         _die(str(ex))
     print(f"created {root}/ with {len(written)} files:")
@@ -147,6 +150,8 @@ def main(argv=None):
     p.add_argument("--name", help="display name (default: directory name)")
     p.add_argument("--lang", nargs="+", default=["en"], help="languages to scaffold, e.g. --lang en zh")
     p.add_argument("--default", help="default language (default: first of --lang)")
+    p.add_argument("--starter", action="store_true",
+                   help="copy the 20-card bilingual starter deck instead of a blank scaffold")
     p.set_defaults(fn=cmd_init)
 
     p = sub.add_parser("verify", help="run every card's code and check card structure")

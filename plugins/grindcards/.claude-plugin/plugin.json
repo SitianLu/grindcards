@@ -1,0 +1,10 @@
+{
+  "name": "grindcards",
+  "version": "0.1.0",
+  "description": "Turn the coding-interview problems you get wrong into flashcards you actually remember: pattern, first-person reasoning with your own dead-end, executable code, memory keys. Builds an offline app; every solution is executed on every build.",
+  "author": { "name": "Sitian Lu" },
+  "homepage": "https://github.com/SitianLu/grindcards",
+  "repository": "https://github.com/SitianLu/grindcards",
+  "license": "MIT",
+  "keywords": ["flashcards", "coding-interview", "leetcode", "spaced-repetition"]
+}

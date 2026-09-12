@@ -1,224 +1,268 @@
-# 题目卡「解法面」四段式 —— 写作规格
+# The problem-card back — writing spec
 
-每道题写一条 `SOL[lc] = dict(idea=[...], dia="...", code="...", keys=[...], test="...", want=...)`。
+Every problem gets one entry in `<lang>/solutions.py`:
+`SOL[lc] = dict(idea=[...], dia="...", code="...", keys=[...], test="...", want=...)`.
 
-卡片背面最终长这样，四段固定顺序：
+The back of the card always renders as four sections, in a fixed order:
 
-1. **使用 pattern** —— 我从 `deep.py` 自动接上，**你不用写**。
-2. **思路分析** —— `idea`（+ 可选 `dia` 图解）
-3. **完整代码实现** —— `code`
-4. **关键记忆点** —— `keys`
+1. **Pattern** — the engine attaches this from `deep.py`. **You do not write it here.**
+2. **Reasoning** — `idea` (plus an optional figure: `fig` from `figures.py`, or `dia`)
+3. **Full implementation** — `code`
+4. **Remember** — `keys`
+
+then Follow-ups and Variants, also from `deep.py`. You never lay the back out by hand.
 
 ---
 
-## `idea` —— 思路分析（必填，4–6 条）
+## `idea` — Reasoning (required, 3–6 bullets)
 
-**写的是一个人第一次见这道题、在白板前边想边说的过程。**
-不是解法说明，不是已知最优解之后的复盘。写完自问一句：
-*照着这几条，下次见一道没见过的题，我能不能自己走一遍？* 不能就是没写对。
+**This is a person seeing the problem for the first time, thinking out loud at a whiteboard.**
+Not a solution write-up, not a retrospective written once the optimal answer is known. When
+you finish, ask: *following these bullets, could I walk through a problem I have never
+seen?* If not, it is not written yet.
 
-### 声音
+### Voice
 
-第一人称，现在进行时，大白话。像跟人讲话，不像填表。
+First person, present tense, plain words. Talking to someone, not filling in a form.
 
-- ✅ 「固定右端 r，我把左端 0…r 全试了一遍。可只要 `[l, r]` 已经够了，
-  再往左扩只会更长 —— 那些全是白试的。」
-- ❌ 「**白做的功：**固定右端 r，只有一个左端值得考虑。」
-  —— 同一件事，但这是把结论按格子填回去，读起来像表格
+- Yes: "Fix the right end r and try every left end 0…r. But once `[l, r]` is already
+  enough, going further left only makes it longer — all of that is wasted work."
+- No: "**Wasted work:** with r fixed, only one left end is worth considering."
+  — the same fact, but the conclusion has been filed back into a slot; it reads like a table.
 
-**不要用 `<b>标签：</b>` 开头。** 这条是踩过的坑：我曾经把 CtCI 那套方法论
-（先想暴力 / bottleneck / 重复计算 / 没用上的条件 / 手算一遍）做成一排标签贴在
-每条前面，自以为是在教方法，结果反而更生硬 —— 因为标签是**分类名**，而人想题的时候
-不会说「白做的功」，会说「我把左端全试了一遍，可其中大部分根本不用试」。
-**方法论要藏在动作里，不要写出名字。**
+**Never open a bullet with `<b>Label:</b>`.** Learned the hard way: the first version turned
+the CtCI method (brute force first / bottleneck / repeated work / unused constraint /
+hand-run an example) into a row of labels stuck on the front of every bullet, believing that
+taught the method. It made the reasoning stiffer, because a label is a **category name**,
+and nobody thinking about a problem says "wasted work" — they say "I tried every left end
+and most of them didn't need trying". **The method lives in the moves, not in their names.**
 
-### 该有的动作（藏在句子里，不要贴标签）
+### The moves (hidden in the sentences, never labelled)
 
-- **先说笨办法**，一句话说完，包括它为什么不行（内存爆了 / 慢在哪一层）
-- **给自己定个目标**：每个字符至少得看一眼，所以下限是 O(n) —— 那多出来的一层就是要干掉的
-- **盯题目特意给的条件**：单线程、BST、没有括号、权重为正。它写出来就是让你用的
-- **拿一个具体的小例子手推**，让坑自己冒出来（`["0:start:0","0:end:0"]` 答案是 1 不是 0）
-- **走进死胡同再退出来**。这是最像人的一段：
-  「递归求两条腿，看着就收工了。可试着把这个值往上传就发现传不动 ——」
-- 设计题：**先把要支持的操作摆出来**，再挑结构；挑完发现缺什么，就补什么
+- **Say the dumb way first**, in one sentence, including why it fails (memory blows up /
+  which layer is slow)
+- **Give yourself a target**: every character has to be looked at once, so the floor is
+  O(n) — the extra layer is the thing to kill
+- **Stare at the constraint the problem hands you**: single-threaded, BST, no parentheses,
+  positive weights. It is written down because you are meant to use it
+- **Hand-run a small concrete example** so the traps surface by themselves
+  (`["0:start:0","0:end:0"]` gives 1, not 0)
+- **Walk into the dead-end and back out.** This is the most human part:
+  "Recurse for both legs and it looks done. Then try passing that value upward and it
+  won't go —"
+- Design problems: **lay out the operations to support first**, then pick the structure;
+  whatever the structure is missing, add it
+- The user's own wrong turn (see the three questions in `SKILL.md`) goes in here as
+  *I tried … and it broke on …*
 
-### 长度
+### Length
 
-**每条 ≤ 110 个可见字符**（去掉 HTML 标签后数），目标中位数 65 左右。
-写长了通常是把 `keys` 的内容提前塞进来了 —— 具体的坑、反例、复杂度都归 `keys`，
-`idea` 只留思考过程，两处不要重复说同一件事。
+**Each bullet ≤ 110 visible characters** (count after stripping HTML tags); aim for a
+median around 65. When a bullet runs long it is usually because `keys` material has leaked
+in — the concrete trap, the counterexample and the complexity all belong to `keys`.
+`idea` keeps only the thinking; do not say the same thing in both places.
 
-### 其他
+### Also
 
-- 讲**为什么会这么想**，不是复述代码在干什么。
-  ❌ `"创建一个哈希表 seen"` —— 这是在念代码
-- 可以用 `<b>` `<code>`，不要用 `<br>`。`<b>` 用来点关键词，不是用来做标题。
+- Explain **why you would think of it**, not what the code does.
+  No: `"create a hash map seen"` — that is reading the code aloud.
+- `<b>` and `<code>` are fine; no `<br>` or any other block-level tag (the verifier
+  rejects them). `<b>` marks a keyword, it does not make a heading.
 
-## `fig` —— 图解（SVG，优先于 `dia`）
+## `fig` — Figure (SVG, preferred over `dia`)
 
-用 `svgdia.py` 生成，写在 `figs.py` 里，`solutions.py` 末尾统一挂到 `SOL[lc]["fig"]`。
-一道题有 `fig` 就不再渲染 `dia`（同一件事画两遍只是把背面拉长）。
+Drawn with `grindcards.svgdia`, written in `<lang>/figures.py` as `FIG[lc] = f.done()`.
+The loader merges figures into the matching `SOL` entry automatically (a figure for a problem
+with no solution is an error). A problem with a `fig` never renders its `dia` — drawing the
+same thing twice only makes the back longer.
 
 ```python
-from svgdia import Fig, INK, MUTE, AC, HI, FILL, BAD, GOOD
+from grindcards.svgdia import Fig, INK, MUTE, AC, HI, FILL, BAD, GOOD
 
-f = Fig()                                  # viewBox 宽 340
-f.title('s = "AAABAC"   t = "AAB"')
-f.gap(12)
-r = f.row("AAABAC", idx=True, hl={0,1,2,3})   # 一排格子
-f.span(r, 0, 3, "凑齐了 → 长 4", drop=10)      # 下方方括号
-f.gap(22)                                     # ← 下一行要在上方挂 ptr，先留位置
-f.ptr(r2, 0, "丢掉", color=MUTE)
-FIG[76] = f.done()
+f = Fig()                                    # viewBox is 340 wide
+f.title('s = "abba"     no repeats inside the window')
+f.gap(22)                                    # ← the next row hangs a ptr above it: leave room
+r = f.row("abba", cw=44, idx=True, hl={2})   # a row of cells
+f.ptr(r, 2, "r hits b: collides with index 1", color=AC)
+f.gap(14)
+f.caption("Map says last[a] = 0 — but the window is [2, 3].", fill=BAD)
+FIG[3] = f.done()
 ```
 
-现有图元：
+Available primitives:
 
-| 图元 | 画什么 | 用过的题 |
+| primitive | draws | starter deck |
 |---|---|---|
-| `row` + `span` / `ptr` | 数组、字符串、时间轴（`fills`/`strokes` 逐格上色）、区间括号、指针 | 76 238 636 |
-| `tree` | 二叉树，按中序排 x、按深度排 y，任何形状都不重叠 | 124 236 314 |
-| `chain` + `hop` | 链表 + 弯箭头（random 指针、回边、成环） | 138 146 426 |
-| `bars` | 柱状图（找峰、看海、股票这类「高低」题） | 162 1762 121 |
-| `graph` | 自由摆位的图（约束图、依赖图、账号-邮箱） | 269 207 721 133 |
-| `grid` | 网格（淹岛、矩阵 BFS 分层、对角线） | 200 1091 766 |
-| `bands` | 共用一根数轴的区间条 | 56 253 986 |
-| `stack` / `title` / `caption` | 栈、题头、注解 | — |
+| `row` + `span` / `ptr` | arrays, strings, timelines (`fills`/`strokes` per cell), bracketed ranges, pointers | 1 3 33 139 560 |
+| `tree` | binary tree; x by inorder, y by depth, so no shape overlaps | 124 236 |
+| `chain` + `hop` | linked list plus curved arrows (random pointers, back edges, cycles) | — |
+| `bars` | bar chart ("high vs low" problems: peaks, water, stock prices) | 11 |
+| `graph` | free-placed graph (constraint graphs, dependency graphs, account–email) | 207 |
+| `grid` | grid (island flooding, layered matrix BFS, diagonals) | — |
+| `bands` | interval bars sharing one axis | — |
+| `stack` / `title` / `caption` | a stack, the header line, annotations | — |
 
-**57 道题全部画了 SVG 图。** 定时任务新加的卡（`extra_cards.py`）仍然用 ASCII
-`dia`，不受影响 —— `assemble` 里 `fig` 优先于 `dia`，两者可以长期共存。
+**All 11 problems in the starter deck have a figure.** `dia` remains a valid fallback —
+the assembler prefers `fig` when both exist, and the two can coexist in one deck for good.
 
-**配色只有五个语义，别自创**：`AC` 当前在看的 / 正确路线，`GOOD` 成立、留下，
-`BAD` 反例和被否掉的那条，`MUTE` 背景，`INK` 主线条。
-全部写成 `var(--fig-*)`，深色模式自动跟随 —— **不要出两套图**。
+**There are exactly five colour meanings; do not invent more**: `AC` what I am looking at
+now / the correct route, `GOOD` holds, keep it, `BAD` the counterexample and the rejected
+route, `MUTE` background, `INK` main strokes. They are all `var(--fig-*)`, so dark mode
+follows automatically — **never draw two versions of a figure**.
 
-### 画什么
+### What to draw
 
-**只画思路里最难口述的那一步**，不是把算法重演一遍。选题标准：这一步是不是
-「说三句还不如画一下」。多数图的主体是一组**对比**：正确的做法 vs 那个很自然
-但是错的做法（LC 124 的三条边、LC 269 的假环、LC 146 漏掉 get 挪位）。
+**Only the one step in the reasoning that is hardest to say out loud**, not a replay of the
+whole algorithm. The test: is this the step where "three sentences" loses to "one picture"?
+Most good figures are a **contrast**: the right move next to the natural-but-wrong one
+(LC 124's three edges on one node, LC 11 moving the tall side, LC 3 jumping blindly to
+`last[a] = 0`).
 
-### 排版
+### Layout
 
-`Fig` 会记录每个图元真正占的纵向空间，`gap(h)` 一律从 `ymax` 起跳，所以
-**顺序调用不会重叠**。唯一要自己操心的是**画在当前行上方**的东西
-（`ptr(above=True)`、`hop(up=True)`）—— 那些在游标之上，得先 `gap()` 留出头顶空间。
-这条踩过：第一版 span 的标签压在下一行的 ptr 上，因为游标只推到了方括号。
+`Fig` records the real vertical extent of every primitive and `gap(h)` always starts from
+`ymax`, so **sequential calls never overlap**. The only thing you manage yourself is anything
+drawn **above the current row** (`ptr(above=True)`, `hop(up=True)`) — those sit above the
+cursor, so call `gap()` first to leave headroom. This one was hit: the first `span` label
+landed on top of the next row's `ptr`, because the cursor had only been pushed past the
+bracket. Keep captions under ~52 characters or they run off the 340px canvas.
 
-## `dia` —— 图解（ASCII，没画 SVG 时的退路）
+## `dia` — Figure (ASCII, the fallback when there is no SVG)
 
-纯文本，等宽渲染。**最宽 52 个半角字符，最多 8 行**，超了在手机上会糊。
+Plain text, rendered monospace. **At most 52 half-width columns and 8 lines**; anything
+wider turns to mush on a phone.
 
-值得画的：滑动窗口的伸缩、双指针的相遇、单调栈的进出、前缀和的区间、
-树的遍历顺序、矩阵的方向、区间的重叠、DP 表的填法。
-画不出信息量就写 `dia=None` —— 硬凑的图比没有图更差。
+Worth drawing: a window expanding and shrinking, two pointers meeting, a monotonic stack's
+pushes and pops, a prefix-sum range, a tree's traversal order, directions in a matrix,
+overlapping intervals, how a DP table fills.
+If the picture carries no information, write `dia=None` — a padded diagram is worse than none.
 
-好图的标准：**看图就能复现算法的一次执行**。
+The standard for a good one: **looking at it, you can replay one execution of the algorithm.**
 
 ```
-nums = [2, 7, 11, 15]   target = 9
-i=0  x=2   need 7   seen={}       没有 → 记 {2:0}
-i=1  x=7   need 2   seen={2:0}    命中 → [0, 1]
+nums = [3, 8, 11, 4]   target = 12
+i=0  x=3  need 9  seen={}             miss -> {3:0}
+i=3  x=4  need 8  seen={3:0,8:1,11:2} hit  -> [1, 3]
 ```
 
-对齐用空格，不要用 tab。中文字符占两格，自己数宽度。
+Align with spaces, never tabs. CJK glyphs take two columns — count the width yourself.
 
-## `code` —— 完整代码实现（必填）
+## `code` — Full implementation (required)
 
-**必须是能直接跑的 Python 3**，不是骨架、不是伪代码。这一条是这次改版的重点：
-以前的卡片只给「解法的形状」，现在要给**面试时能一字不差写出来的那份**。
+**Must be Python 3 that runs as-is** — not a skeleton, not pseudocode. This was the point of
+the rewrite: the old cards gave "the shape of the solution", the new ones give **the version
+you can write out character for character in an interview**.
 
-- 带完整函数签名，名字用 LeetCode 的官方方法名（`twoSum`、`lengthOfLongestSubstring`…）。
-- 需要的 import 写在代码块最上面（`from collections import defaultdict, deque` 等）。
-- **不要**自己定义 `TreeNode` / `ListNode` / `Node` —— 当它们已经存在（和 LeetCode 一样）。
-- 边界要处理（空输入、单元素），但不要为了防御而堆一堆无关的 if。
-- 关键步骤用注释点出来，注释要说**为什么**，不是复述这行在干什么。
-- **可读性 > 行数。** 这份代码要像面试白板上真能写出来的那一份，不是压缩过的版本：
-  - 变量起有意义的名字（`missing_kinds` 而不是 `have`，`best_left` 而不是元组打包）
-  - 分支摊开写，不用 `for...else`、不用海象运算符这类省字符但难读的语法
-  - 宁可多三行，也不要一行里塞两个意图
-  - 40 行以内都可以接受（背面是可滚动的，代码块还能点 ⤢ 全屏）
-- **每行 ≤ 64 个字符。** 卡片按最宽那一行决定字号，一行超宽会让整段代码变小。
-  这是硬约束，比行数重要得多。
+- Full function signature, with LeetCode's official method name (`twoSum`,
+  `lengthOfLongestSubstring`, …).
+- Imports at the top of the block (`from collections import defaultdict, deque`, etc.).
+- **Do not** define `TreeNode` / `ListNode` / `Node` — assume they exist, as on LeetCode.
+- Handle the edges (empty input, one element), but do not pile up unrelated defensive `if`s.
+- Comment the key steps, and make the comment say **why**, not what the line does.
+- **Readability beats line count.** This should look like the code you would really write on
+  a whiteboard, not a compressed version:
+  - meaningful names (`missing_kinds` rather than `have`, `best_left` rather than a packed tuple)
+  - branches spelled out; no `for...else`, no walrus — syntax that saves characters and costs reading
+  - three more lines are better than two intentions on one line
+  - up to about 40 lines is fine (the back scrolls, and the code block has a full-screen
+    button); the verifier only warns past 55
+- **Every line ≤ 64 characters.** The card picks its font size from the widest line, so one
+  wide line shrinks the whole block. This is a hard limit and matters far more than the line
+  count (80 terminal columns is a soft one — CJK comments count double).
+- Type annotations may stay: the build strips them before the code ships (a fully annotated
+  `def twoSum(...)` wraps to three lines on a phone) and tests the stripped version.
 
-## `keys` —— 关键记忆点（必填，2–4 条）
+## `keys` — Remember (required, 2–6 items)
 
-翻完卡片只带走这几句。**最后一条固定是复杂度**。
+The only sentences you carry away from the card. **The last item is always the complexity.**
 
-- 第一条：这题的命门，写成正面陈述 —— `"先查后插 —— 顺序反了 [3,3] 会自己配自己"`
-- 中间：踩过的坑，写成**犯过的错**而不是忠告。
-  ✅ `"坑：用双 map 特判 duplicate → [3,2,4], t=6 返回 (0,0)"`
-  ❌ `"注意处理重复元素"`
-- 最后：`"O(n) time / O(n) space"` 这种格式。
+- First: the crux of this problem, as a positive statement —
+  `"Check, then insert — reversed, [3,3] pairs an index with itself"`
+- Middle: the traps, written as **mistakes actually made**, not advice.
+  Yes: `"Mistake: two maps plus a duplicate special-case → [3,2,4], t=6 returned (0,0)"`
+  No: `"Be careful with duplicate elements"`
+- Last: `"O(n) time · O(n) space"`, in exactly that shape.
 
-可以用 `<b>` `<code>`。
+`<b>` and `<code>` are allowed; no block-level tags.
 
-## `test` / `want` —— 让代码可验证（必填）
+## `test` / `want` — make the code checkable (required)
 
-`test` 是一个 Python 表达式字符串，在 `code` 之后执行，返回值要等于 `want`。
-harness 会真的跑一遍，跑不通或答案不对的不许交。
+`test` is a Python expression string, evaluated after `code`; its value must equal `want`.
+`grindcards verify` really runs it, and a card that fails or gets the wrong answer does not
+ship. Cover the front's example, the input that broke the user, and the degenerate case — a
+tuple of calls is the usual shape.
 
-结果顺序不确定的，在 `test` 里自己归一化：
+When the result order is not defined, normalise it inside `test`:
 
 ```python
-test="sorted(map(sorted, groupAnagrams(['eat','tea','tan','ate','nat','bat'])))",
-want=[['ate','eat','tea'], ['bat'], ['nat','tan']]
+test="sorted(map(sorted, groupAnagrams(['care','race','acre','bat','tab','cat'])))",
+want=[['acre','care','race'], ['bat','tab'], ['cat']]
 ```
 
-harness 预置了这些（直接用，不要重复定义）：
+The verifier pre-defines these (use them directly; do not redefine):
 
 ```python
 class ListNode: def __init__(self, val=0, next=None)
 class TreeNode: def __init__(self, val=0, left=None, right=None)
 build_list([1,2,3])      -> ListNode        to_list(head)      -> [1,2,3]
-build_tree([3,9,20,None,None,15,7]) -> TreeNode   (LeetCode 层序，None 占位)
+build_tree([3,9,20,None,None,15,7]) -> TreeNode   (LeetCode level order, None = gap)
+# plus Optional, List, collections, heapq, bisect, math, itertools, functools
 ```
 
-设计题就写一段调用序列：
+For a design problem, write a call sequence:
 
 ```python
 test="(lambda c=LRUCache(2): [c.put(1,1), c.put(2,2), c.get(1), c.put(3,3), c.get(2)])()[2::2]",
 want=[1, -1]
 ```
 
-实在没法自动测的（比如需要 `NestedInteger` 这种 LeetCode 私有接口），写
-`test=None, want=None`，并在 `keys` 里如实说明。**能测的一律要测。**
+If something truly cannot be tested automatically (it needs a LeetCode-private interface
+like `NestedInteger`), write `test=None, want=None` and say so honestly in `keys`.
+**Anything that can be tested must be.**
 
 ---
 
-## 完整样例（照着这个写）
+## Complete example (write yours like this)
+
+This is the real LC 1 entry from the starter deck's `en/solutions.py`:
 
 ```python
-1: dict(
-  idea=[
-    "笨办法：对每个 x，去右边把 <code>target − x</code> 找一遍。O(n²)。",
-    "开销全在<b>找</b>上 —— 而且我每次扫的那片右边，和上一轮几乎一模一样。"
-    "同一批数被反复看，这就是要干掉的地方。",
-    "那把方向反过来：走到 x 的时候，不去右边找，而是问"
-    "「<code>target − x</code> 我<b>之前</b>见过吗」。从「找」变成「查记忆」，一步 O(1)。",
-    "顺带一个白捡的好处：查的那一刻 <code>seen</code> 里只有 x <b>左边</b>的数，"
-    "所以自己配自己不可能发生，重复值也不用特判。",
-  ],
-  dia="""nums = [2, 7, 11, 15]   target = 9
-i=0  x=2   need 7   seen={}       没有 -> 记 {2:0}
-i=1  x=7   need 2   seen={2:0}    命中 -> [0, 1]""",
-  code="""def twoSum(nums: list[int], target: int) -> list[int]:
-    seen = {}                          # 值 -> 下标
+    1: dict(
+        idea=[
+            'Dumb way first: for each x, scan everything to its right for '
+            '<code>target − x</code>. O(n²).',
+            'All the cost is in the <b>searching</b> — and the slice I scan each round is '
+            'nearly the same slice as last round.',
+            'Flip it around: when I reach x, don\'t look ahead — ask "have I '
+            '<b>already</b> seen <code>target − x</code>?"',
+            'That turns a search into a memory lookup, O(1) a step. One pass and I\'m done.',
+            'Bonus: at check time <code>seen</code> only holds what\'s <b>left</b> of x, '
+            'so nothing pairs with itself. No special case.',
+        ],
+        code="""
+def twoSum(nums: list[int], target: int) -> list[int]:
+    seen = {}                          # value -> index
     for i, x in enumerate(nums):
-        if target - x in seen:         # ① 先查：此时表里只有 x 左边的数
+        if target - x in seen:         # ① check: left side only
             return [seen[target - x], i]
-        seen[x] = i                    # ② 后插
-    return []""",
-  keys=[
-    "<b>先查后插</b>。顺序反了，<code>[3,3], t=6</code> 会用同一个下标配自己。",
-    "坑：我当初用双 map 特判 duplicate → <code>[3,2,4], t=6</code> 返回 <code>(0,0)</code>。"
-    "先查后插一遍搞定，别打补丁。",
-    "O(n) time / O(n) space",
-  ],
-  test="twoSum([2,7,11,15], 9)", want=[0,1]),
+        seen[x] = i                    # ② insert after
+    return []
+""",
+        keys=[
+            '<b>Check, then insert</b>. Reverse the order and <code>[3,3], t=6</code> '
+            'pairs an index with itself.',
+            'Mistake I made: two maps plus a duplicate special-case → <code>[3,2,4], t=6</code> '
+            'returned <code>(0,0)</code>. Check-then-insert handles it in one pass; don\'t patch.',
+            'O(n) time · O(n) space',
+        ],
+        test='twoSum([3, 8, 11, 4], 12)',
+        want=[1, 3],
+    ),
 ```
 
-## 语言
+## Language
 
-正文中文，术语保留英文（pattern / sliding window / DP）。代码注释中文。
-和现有卡片一个口气：直接、具体、给反例，不写「我们可以考虑」这种。
+Write in the language of the folder you are in; keep the technical terms as they are
+(pattern / sliding window / DP). Code comments are translated per language; the code itself
+is identical in every language, and `verify` checks that. Match the voice of the existing
+cards: direct, concrete, always a counterexample — never "we could consider".

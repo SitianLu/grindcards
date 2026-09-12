@@ -1,0 +1,17 @@
+GrindCards Starter Deck — card content
+
+Copyright (c) 2026 Sitian Lu
+
+This work (the text, figures and code on the cards in this directory) is licensed under
+the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
+To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+You may copy, adapt and redistribute this content for non-commercial purposes, provided
+you credit GrindCards and license your adaptations under the same terms.
+
+Problem numbers and titles refer to problems on LeetCode (leetcode.com) and are used only
+to identify them. Problem statements, examples, hints, reasoning, figures and solutions
+here were written independently for this deck.
+
+The GrindCards engine and CLI (everything outside this directory) are MIT-licensed; see the
+LICENSE file at the repository root.

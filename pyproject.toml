@@ -30,4 +30,4 @@ grindcards = "grindcards.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-grindcards = ["templates/*.html", "starter/deck.toml", "starter/*.py", "starter/*/*.py", "starter/.gitignore"]
+grindcards = ["templates/*.html", "starter/deck.toml", "starter/*.py", "starter/*/*.py", "starter/.gitignore", "starter/LICENSE"]
