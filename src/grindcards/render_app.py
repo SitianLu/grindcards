@@ -216,6 +216,7 @@ def _sidecars(outdir: Path, version: str, name: str, desc: str, lang: str):
 def render_app(deck, built: dict, out: Path):
     """built: {lang: (cards, listed_variants)} from assemble()."""
     out = Path(out)
+    out.parent.mkdir(parents=True, exist_ok=True)
     decks, variants = {}, {}
     for lang, (cards, listed) in built.items():
         decks[lang], variants[lang] = _lang_payload(cards, listed, deck.sections, lang)
