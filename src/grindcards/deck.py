@@ -49,6 +49,10 @@ def _load_module(path: Path, name: str):
     sys.path.insert(0, str(path.parent))
     try:
         spec.loader.exec_module(mod)
+    except SyntaxError as ex:
+        raise DeckError(f"{path}:{ex.lineno}: {ex.msg}") from ex
+    except Exception as ex:                  # content files are code; surface their errors plainly
+        raise DeckError(f"{path}: {type(ex).__name__}: {ex}") from ex
     finally:
         sys.path.pop(0)
     return mod

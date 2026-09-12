@@ -1,0 +1,4 @@
+[deck]
+name = "GrindCards Starter"
+languages = ["en", "zh"]
+default_language = "en"

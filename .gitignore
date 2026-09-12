@@ -3,4 +3,4 @@ __pycache__/
 build/
 dist/
 .venv/
-decks/*/build/
+src/grindcards/starter/build/

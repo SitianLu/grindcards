@@ -54,11 +54,12 @@ def build_tree(a):
     return root
 '''
 
-CODE_MAX_COLS = 64        # the card picks its font size from the widest line
+CODE_MAX_CHARS = 64       # the card picks its font size from the widest line (hard)
+CODE_MAX_COLS = 80        # same, in terminal columns with CJK = 2 (soft: comments in CJK)
 CODE_SOFT_LINES = 55
 IDEA_RANGE = (3, 6)
 KEYS_RANGE = (2, 6)
-IDEA_MAX_COLS = 130       # visible columns (CJK = 2); longer bullets wrap into a paragraph
+IDEA_MAX_CHARS = 110      # visible characters; longer bullets read as a paragraph (soft)
 FORBIDDEN_TAGS = ("<br", "<p", "<div", "<span", "<ul", "<li", "<ol")
 
 
@@ -86,10 +87,17 @@ def visible(s: str) -> str:
 def code_skeleton(code: str) -> str:
     """Code with comments and whitespace removed — what must match across languages."""
     try:
-        toks = tokenize.generate_tokens(io.StringIO(code).readline)
-        return "".join(t.string for t in toks
-                       if t.type not in (tokenize.COMMENT, tokenize.NL, tokenize.NEWLINE,
-                                         tokenize.INDENT, tokenize.DEDENT))
+        out, prev = [], None
+        skip = (tokenize.COMMENT, tokenize.NL, tokenize.NEWLINE, tokenize.INDENT, tokenize.DEDENT)
+        for t in tokenize.generate_tokens(io.StringIO(code).readline):
+            # A string that opens a statement is a docstring: prose, like a comment.
+            is_doc = t.type == tokenize.STRING and prev in (None, tokenize.NEWLINE, tokenize.INDENT,
+                                                            tokenize.DEDENT, tokenize.NL)
+            if t.type not in skip and not is_doc:
+                out.append(t.string)
+            if t.type not in (tokenize.COMMENT, tokenize.NL):
+                prev = t.type
+        return "".join(out)
     except (tokenize.TokenError, SyntaxError):
         return re.sub(r"\s+", "", code)
 
@@ -107,6 +115,18 @@ def run_code(code: str, test: str, want):
     if got != want:
         return False, f"wrong answer: got {got!r}, want {want!r}"
     return True, ""
+
+
+def _code_width(lang, where, lines, out):
+    wide = [l for l in lines if len(l) > CODE_MAX_CHARS]
+    if wide:
+        out.append(Problem(lang, where, f"{len(wide)} code line(s) longer than {CODE_MAX_CHARS} characters "
+                                        f"(shrinks the whole block): {wide[0].strip()[:40]}…"))
+        return
+    wide = [l for l in lines if cols(l) > CODE_MAX_COLS]
+    if wide:
+        out.append(Problem(lang, where, f"{len(wide)} code line(s) wider than {CODE_MAX_COLS} columns "
+                                        f"(CJK comments count double): {wide[0].strip()[:40]}…", fatal=False))
 
 
 def check_solution(lang: str, lc: int, e: dict, out: list):
@@ -128,9 +148,9 @@ def check_solution(lang: str, lc: int, e: dict, out: list):
                 out.append(Problem(lang, where, f"block-level tag {tag!r} inside a bullet: {visible(s)[:50]}…"))
                 break
     for s in e["idea"]:
-        w = cols(visible(s))
-        if w > IDEA_MAX_COLS:
-            out.append(Problem(lang, where, f"idea bullet is {w} columns wide (keep ≤{IDEA_MAX_COLS}): "
+        w = len(visible(s))
+        if w > IDEA_MAX_CHARS:
+            out.append(Problem(lang, where, f"idea bullet is {w} characters (keep ≤{IDEA_MAX_CHARS}): "
                                             f"{visible(s)[:50]}…", fatal=False))
     if e.get("dia"):
         lines = e["dia"].split("\n")
@@ -147,10 +167,7 @@ def check_solution(lang: str, lc: int, e: dict, out: list):
     if len(lines) > CODE_SOFT_LINES:
         out.append(Problem(lang, where, f"code is {len(lines)} lines; the back scrolls, but consider trimming",
                            fatal=False))
-    wide = [l for l in lines if cols(l) > CODE_MAX_COLS]
-    if wide:
-        out.append(Problem(lang, where, f"{len(wide)} code line(s) wider than {CODE_MAX_COLS} columns "
-                                        f"(shrinks the whole block): {wide[0].strip()[:40]}…"))
+    _code_width(lang, where, lines, out)
     if not e.get("test"):
         out.append(Problem(lang, where, "no test — the code has never been run"))
         return
@@ -168,11 +185,7 @@ def check_concepts(lang: str, concepts, out: list):
         for kind, v in blocks:
             if kind != "code":
                 continue
-            lines = v.strip("\n").split("\n")
-            wide = [l for l in lines if cols(l) > CODE_MAX_COLS]
-            if wide:
-                out.append(Problem(lang, where, f"{len(wide)} code line(s) wider than {CODE_MAX_COLS} columns: "
-                                                f"{wide[0].strip()[:40]}…"))
+            _code_width(lang, where, v.strip("\n").split("\n"), out)
             src = strip_hints(v)
             try:
                 compile(src, f"<{title}>", "exec")
