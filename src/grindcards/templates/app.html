@@ -12,20 +12,20 @@
 <meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
 <link rel="apple-touch-icon" href="__ICON__">
 <link rel="icon" href="__ICON__">
-<!-- Chrome / Edge "安装应用" — sidecar files live next to this page.
+<!-- Chrome / Edge "Install app" — sidecar files live next to this page.
      Opened from file:// they 404 harmlessly and the app still works. -->
-<!-- 【manifest 只给非 iOS】现代 iOS 一旦看到 manifest 就用它接管「添加到主屏幕」，
-     于是 apple-mobile-web-app-status-bar-style: black-translucent 被忽略，
-     网页被装进一个比屏幕矮的框里（实测视口 844 / 屏幕 912，安全区 0/0），
-     底部凭空多出一条 68px 的边，任何 CSS 都够不到。
-     iOS 上不给 manifest，它就回到旧的 apple-meta 路径 —— 那条路是能拿到全屏的。
-     图标不受影响：上面的 apple-touch-icon 才是 iOS 真正用的那个。
-     Chrome/Edge 仍然拿得到 manifest，安装应用照常。 -->
+<!-- [Manifest for non-iOS only] The moment modern iOS sees a manifest it lets it take over
+     "Add to Home Screen", apple-mobile-web-app-status-bar-style: black-translucent is ignored,
+     and the page gets boxed into a frame shorter than the screen (measured: viewport 844 / screen 912,
+     safe area 0/0) — a 68px strip appears out of nowhere at the bottom that no CSS can reach.
+     Withhold the manifest on iOS and it falls back to the old apple-meta path — the one that actually gets full screen.
+     Icons are unaffected: the apple-touch-icon above is the one iOS really uses.
+     Chrome/Edge still get the manifest, so "Install app" works as before. -->
 <script>
 (function(){
   var ua = navigator.userAgent || '';
   var iOS = /iP(hone|od|ad)/.test(ua) ||
-            (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);   // iPadOS 伪装成 Mac
+            (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);   // iPadOS masquerades as a Mac
   if(iOS) return;
   var l = document.createElement('link');
   l.rel = 'manifest'; l.href = 'manifest.webmanifest';
@@ -39,7 +39,7 @@
   --keybg:#eef8f2; --keyline:#4b9e6a; --keyink:#1c3f2b;
   --warnbg:#fdf8ec; --warnline:#e0a53a; --warnink:#5b4a1f;
   --chip:#f1f3f5; --shadow:0 10px 34px rgba(16,20,28,.13),0 2px 6px rgba(16,20,28,.07);
-  /* 图解用色。SVG 里全部写成 var(--fig-*)，深色模式自动跟随，不用出两套图 */
+  /* Diagram colours. Every SVG writes var(--fig-*), so dark mode follows automatically — no need for two sets of figures */
   --fig-ink:#3f4650; --fig-mute:#8b9198; --fig-ac:#0369a1; --fig-hi:#dbeafe;
   --fig-fill:#f7f8fa; --fig-bad:#c0392b; --fig-good:#15803d;
 }
@@ -63,8 +63,8 @@ body{
 }
 #app{
   position:fixed; inset:0; display:flex; flex-direction:column;
-  /* 【底部安全区不在这里吃】以前这里和 footer 的 padding-bottom 叠在一起，
-     底下白白空掉两层。现在底部交给 footer 一处处理，卡片得以往下长。 */
+  /* [Bottom safe area is NOT consumed here] This used to stack on top of the footer's padding-bottom,
+     leaving two layers of dead space below. The footer now owns the bottom in one place, and the card gets to grow downward. */
   padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
 }
 
@@ -90,22 +90,22 @@ header{display:flex;align-items:center;gap:10px;padding:10px 16px 6px;flex:none}
   box-shadow:var(--shadow);overflow:hidden;transform-origin:center center;
   display:flex;flex-direction:column;
 }
-/* will-change 常驻会把整张卡（含长长的解法面）永久提成合成层，滚动时要反复
-   重新栅格化一大片。只在真正动画/拖拽的那几百毫秒里挂上。 */
+/* A permanent will-change promotes the whole card (long solution face included) to its own compositor
+   layer, which then gets re-rasterised in big chunks while scrolling. Attach it only for the few hundred ms of a real animation/drag. */
 .card.anim{transition:transform .17s ease-in, opacity .17s ease-in;will-change:transform,opacity}
 .card.slide{transition:transform .26s cubic-bezier(.3,.7,.3,1), opacity .26s;will-change:transform,opacity}
-/* 【别叫 .grab】.grab 是下面弹层的小把手（38×4px），卡片一沾上这个类就会被
-   那条规则压成一根 4px 的细条 —— 手指一按卡片就消失，看起来正是「空屏」。 */
+/* [Don't call it .grab] .grab is the little handle on the sheet below (38×4px); the moment the card picks up
+   that class, that rule squashes it into a 4px sliver — the card vanishes as soon as a finger touches it, which looks exactly like the "blank screen" bug. */
 .card.hold{will-change:transform,opacity}
-/* 闲置的那张：display:none，浏览器完全不给它排版，翻不到的卡片不占任何渲染成本 */
+/* The idle card: display:none, so the browser skips layout for it entirely — a card you can't reach costs nothing to render */
 .card.gone{display:none}
 .accent{height:4px;flex:none}
 
 /* front */
 .face{flex:1;min-height:0;display:flex;flex-direction:column;padding:20px 22px 16px;overflow:hidden}
-/* touch-action 是沿祖先链求交集的：这里写 pan-y 的话，里面代码块的 pan-x
-   和它一交集就什么都不剩，横向滚代码在真机上根本不生效。两个方向都放开，
-   横向没有可滚的东西时浏览器自然什么也不做，卡片横滑交给 JS。 */
+/* touch-action is intersected along the ancestor chain: with pan-y here, the code block's pan-x inside
+   intersects with it to nothing, and horizontal code scrolling simply never works on a real device. Allow both
+   directions; when there's nothing horizontally scrollable the browser naturally does nothing, and card swipes are left to JS. */
 .face.scroll{overflow-y:auto;overscroll-behavior:contain;
   touch-action:pan-x pan-y}
 .fsec{font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
@@ -117,15 +117,15 @@ header{display:flex;align-items:center;gap:10px;padding:10px 16px 6px;flex:none}
 .hook .lead{display:block;font-size:.63em;color:var(--mute);font-weight:550;line-height:1.5;
             margin-bottom:15px;letter-spacing:.005em}
 .hook .stmt{display:block}
-/* 例子：一行等宽小字。它承担「把题目变具体」的活，所以要跟题面明确分开，
-   但不能抢戏 —— 一条竖线 + 灰字，不加框不加底色。 */
+/* Example: one line of small monospace. Its job is to "make the problem concrete", so it must be clearly
+   set apart from the statement without stealing the show — a vertical bar + grey text, no box, no fill. */
 .hook .ex{display:block;margin-top:12px;padding-left:11px;border-left:2px solid var(--line);
   font-family:ui-monospace,"SF Mono",Menlo,"DejaVu Sans Mono",monospace;
   font-size:.68em;line-height:1.55;color:var(--mute);white-space:pre-wrap;word-break:break-word}
 .hook .prompt{display:block;margin-top:14px;font-size:.7em;color:var(--mute);letter-spacing:.04em;font-weight:600}
-/* 题面里的 code 只做等宽区分，不加底色边框 —— 一段话里嵌五六个灰框反而更乱 */
+/* code inside the statement is monospace only, no fill or border — five or six grey boxes embedded in one paragraph only adds clutter */
 .hook .stmt code{background:none;border:none;padding:0;font-size:.93em;color:var(--ink)}
-/* 题面从固定位置起排，每张卡的视线落点一致；概念卡的一句话提问仍然居中 */
+/* The statement starts from a fixed position so the eye lands in the same spot on every card; a concept card's one-line question stays centred */
 .hookwrap.top{align-items:flex-start;padding-top:16px}
 
 /* hints + actions (problem cards) */
@@ -174,15 +174,15 @@ pre{font-family:ui-monospace,"SF Mono",Menlo,"DejaVu Sans Mono",monospace;
     font-size:12.4px;line-height:1.52;background:var(--codebg);border-left:3px solid var(--codeline);
     border-radius:0 8px 8px 0;padding:11px 13px;overflow-x:auto;
     white-space:pre;color:var(--ink);user-select:text;-webkit-user-select:text;
-    /* 【必须两个方向都写】只写 pan-x 等于禁掉纵向平移：手指落在代码块（以及
-       图解、全屏里的代码）上就再也滑不动卡片了 —— 那是两块死区。
-       两个都允许时，横向由代码块自己滚，纵向没有可滚的东西就自然冒泡给背面。 */
+    /* [BOTH directions are required] pan-x alone disables vertical panning: once a finger lands on a code
+       block (or a diagram, or code in fullscreen) the card can no longer be scrolled — two dead zones.
+       With both allowed, the code block scrolls itself horizontally, and vertical, having nothing scrollable, bubbles up to the back face. */
     touch-action:pan-x pan-y;
     overscroll-behavior-x:contain}
 pre .cl{display:block;min-height:1.52em;padding-left:var(--i,0);text-indent:-2ch}
 body.wrap pre{overflow-x:hidden}
-/* 换行模式下给悬挂缩进封顶：最深的代码缩进 20 列，照搬会让那一行在手机上
-   只剩十几个字符可用，折成一片。横向滚动模式不封顶，缩进照实显示。 */
+/* Cap the hanging indent in wrap mode: the deepest code indents 20 columns, and copying that leaves such a
+   line a dozen usable characters on a phone, wrapped into mush. Horizontal-scroll mode is uncapped and shows the indent as-is. */
 body.wrap pre .cl{white-space:pre-wrap;word-break:break-word;
   padding-left:min(var(--i,0), 11ch)}
 .key,.warn{border-radius:0 9px 9px 0;padding:10px 13px;font-size:14px;line-height:1.55}
@@ -199,8 +199,8 @@ th{background:var(--chip);font-weight:700;color:var(--ink)}
 .more{display:flex;align-items:center;gap:10px;margin:18px 0 14px !important;
       font-size:10px;font-weight:750;letter-spacing:.16em;color:var(--mute)}
 .more::before,.more::after{content:"";flex:1;height:1px;background:var(--line)}
-/* ── 解法面固定四段: ①pattern ②思路(+图解) ③完整实现 ④关键记忆点 ── */
-/* 正文四段走整宽（代码块本来就不够宽），深入那两段缩进，一眼分出主次 */
+/* ── Solution face has four fixed parts: ①pattern ②approach(+diagram) ③full implementation ④key takeaways ── */
+/* The four body parts run full width (code blocks are never wide enough as it is); the two deep-dive parts are indented, so primary vs secondary reads at a glance */
 .body>.dlab{margin-top:16px}
 .body>.dlab:first-child{margin-top:0}
 .idea{padding-left:0;list-style:none;counter-reset:s}
@@ -208,8 +208,8 @@ th{background:var(--chip);font-weight:700;color:var(--ink)}
 .idea li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:1px;
   width:18px;height:18px;border-radius:50%;background:var(--chip);color:var(--mute);
   font-size:10.5px;font-weight:800;display:grid;place-items:center}
-/* SVG 图解：viewBox 定死逻辑坐标，宽度交给卡片，多窄的屏都清晰。
-   不用 fitDia 那套缩字号的办法——那是给字符画擦屁股的，矢量图不需要。 */
+/* SVG diagrams: viewBox pins the logical coordinates, the card owns the width, crisp on any screen however narrow.
+   None of fitDia's font-shrinking business — that exists to mop up after ASCII art; vectors don't need it. */
 .figwrap{margin:9px 0 2px}
 svg.fig{display:block;width:100%;height:auto}
 svg.fig text{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",
@@ -220,7 +220,7 @@ svg.fig .m{font-family:ui-monospace,"SF Mono",Menlo,"DejaVu Sans Mono",monospace
 pre.dia{background:transparent;border-left:2px solid var(--line);border-radius:0;
   color:var(--mute);font-size:11.2px;line-height:1.62;padding:2px 0 2px 12px;
   white-space:pre;overflow:visible;
-  width:max-content;min-width:100%}   /* 撑到内容宽，让外层 .diawrap 去横向滚 */
+  width:max-content;min-width:100%}   /* stretch to content width and let the outer .diawrap do the horizontal scrolling */
 .keys{padding-left:0;list-style:none}
 .keys li{position:relative;padding-left:15px;margin:7px 0;line-height:1.58}
 .keys li::before{content:"";position:absolute;left:2px;top:.62em;width:5px;height:5px;
@@ -243,8 +243,8 @@ pre.dia{background:transparent;border-left:2px solid var(--line);border-radius:0
 .vr+.vr{border-top:1px dotted var(--line)}
 .vn{flex:0 0 46%;font-weight:700;color:var(--ink)}
 .vd{flex:1;color:var(--ink2)}
-/* 变种题名可点：牌组里有就跳卡（›），没有就开 LeetCode（↗）。
-   不做成按钮样子 —— 一屏四五条，加边框就成了控件墙。 */
+/* Variant names are clickable: jump to the card if the deck has it (›), otherwise open LeetCode (↗).
+   Not styled as buttons — four or five per screen, and borders would turn it into a wall of controls. */
 a.vn,button.vn{font-family:inherit;font-size:inherit;text-align:left;background:none;
   border:none;padding:0;cursor:pointer;text-decoration:none;
   text-underline-offset:3px;text-decoration-color:var(--line)}
@@ -260,8 +260,8 @@ a.vn:active,button.vn:active{opacity:.55}
   color:var(--mute);pointer-events:none}
 
 /* ── footer ── */
-/* home indicator 本身只有几个 px 高、离屏幕底边约 8px。整段 34px 的安全区
-   全留白太浪费，减掉一截仍然不会压到它，卡片却能多出一行的高度。 */
+/* The home indicator itself is only a few px tall and sits ~8px from the screen's bottom edge. Leaving the
+   whole 34px safe area blank is wasteful; trimming a chunk still doesn't touch it, and the card gains a line of height. */
 footer{flex:none;display:flex;gap:10px;
   padding:5px 16px max(8px, calc(env(safe-area-inset-bottom) - 16px))}
 .act{
@@ -296,9 +296,9 @@ footer{flex:none;display:flex;gap:10px;
 .chk{width:21px;height:21px;border-radius:7px;border:1.5px solid var(--line);flex:none;
      display:grid;place-items:center;font-size:12px;color:transparent}
 .chk.on{background:var(--ink);border-color:var(--ink);color:var(--card)}
-/* ── 代码全屏 ──
-   卡片内的代码块受限于卡片宽度，翻页手势又占着横轴。全屏页里没有翻页，
-   两个方向都能自由滚，字号也能调 —— 长代码真正能读的地方在这里。 */
+/* ── Code fullscreen ──
+   A code block inside the card is limited by the card's width, and the paging gesture owns the x axis. Fullscreen
+   has no paging, scrolls freely in both directions and lets you change the font size — long code is actually readable here. */
 .codefs{display:none;position:fixed;inset:0;z-index:30;background:var(--card);
   flex-direction:column;
   padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
@@ -323,7 +323,7 @@ footer{flex:none;display:flex;gap:10px;
 .codefs.wrap #cfPre{white-space:pre-wrap;width:auto;word-break:break-word}
 .codefs.wrap #cfPre .cl{padding-left:min(var(--i,0), 11ch)}
 .cfhint{flex:none;text-align:center;font-size:11px;color:var(--mute);padding:6px 12px 12px}
-/* 展开按钮：题目卡放在「③ 完整实现」那一行；概念卡没有标题行，挂在代码块角上 */
+/* Expand button: problem cards put it on the "③ full implementation" row; concept cards have no heading row, so it hangs on the code block's corner */
 .codelab{display:flex;align-items:center;gap:8px}
 .codelab .zoom{margin-left:auto;height:24px;padding:0 9px;border-radius:8px;
   border:1px solid var(--line);background:transparent;color:var(--mute);
@@ -335,7 +335,7 @@ footer{flex:none;display:flex;gap:10px;
   opacity:.85;z-index:2}
 .zoom:active{transform:scale(.92)}
 
-/* ── 「没连上同步」横幅：独立 App 里静默退化成本地模式最坑，必须说出来 ── */
+/* ── "Sync not connected" banner: silently degrading to local mode inside the standalone app is the nastiest failure of all, so it must be said out loud ── */
 .nokey{display:none;position:fixed;left:12px;right:12px;z-index:22;
   top:calc(env(safe-area-inset-top) + 10px);
   background:var(--card);border:1px solid var(--warnline);border-radius:14px;
@@ -347,7 +347,7 @@ footer{flex:none;display:flex;gap:10px;
   border:1px solid var(--line);background:var(--chip);color:var(--ink2);
   font-family:inherit;font-size:13px;font-weight:650;cursor:pointer}
 
-/* ── 同步密钥输入 ── */
+/* ── Sync key input ── */
 .krow{display:flex;gap:8px;margin-top:10px}
 .krow input{flex:1;min-width:0;height:42px;border-radius:12px;border:1px solid var(--line);
   background:transparent;color:var(--ink);font-family:ui-monospace,"SF Mono",Menlo,monospace;
@@ -359,10 +359,10 @@ footer{flex:none;display:flex;gap:10px;
 .krow button:active{transform:scale(.96)}
 #keyShow{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11px}
 
-/* ── 按类型复习面板 ──
-   一行两个热区：点名字展开这一类的全部卡片，点右边的 ✓ 只切筛选。
-   分开是因为这两件事目的不同 —— 一个是「我要看看这类都有啥」，
-   一个是「把这类留在牌组里」。挤在同一个点击区里，两个都不好按。 */
+/* ── Review-by-topic panel ──
+   Two hit areas per row: tap the name to expand every card in that topic, tap the ✓ on the right to toggle the filter only.
+   They're separate because the two intents differ — one is "let me see what's in this topic",
+   the other is "keep this topic in the deck". Crammed into the same tap target, both become hard to hit. */
 .sgrp{border-bottom:1px solid var(--line)}
 .sgh{display:flex;align-items:center;gap:10px;padding:11px 0;font-size:14.5px}
 .sgh .nm{flex:1;min-width:0;display:flex;align-items:center;gap:10px;cursor:pointer}
@@ -390,7 +390,7 @@ footer{flex:none;display:flex;gap:10px;
   border-radius:5px;padding:1px 5px;line-height:1.5}
 .citem .tag.todo{color:var(--warnink);background:var(--warnbg);border-color:var(--warnline)}
 
-/* ── 变种题面板 ── */
+/* ── Variants panel ── */
 .vhint{font-size:12px;line-height:1.55;color:var(--mute);margin:-2px 0 8px}
 .vhint b{color:var(--ink2)}
 .vgrp{border-bottom:1px solid var(--line)}
@@ -420,14 +420,14 @@ footer{flex:none;display:flex;gap:10px;
 .done h2{font-size:26px;font-weight:750}
 .done p{font-size:15px;color:var(--mute);line-height:1.6}
 
-/* ── 桌面 ──────────────────────────────────────────────────────────
-   手机上整块 app 铺满屏幕；桌面上把它收成一根居中的立牌，两侧留出
-   翻页箭头。触屏逻辑一行没动，鼠标拖拽是另加的一套。 */
+/* ── Desktop ───────────────────────────────────────────────────────
+   On a phone the whole app fills the screen; on desktop it shrinks to a centred upright card with paging
+   arrows left free on either side. Not one line of the touch logic changed; mouse dragging is a separate add-on. */
 .nav{display:none}
 .kbd{display:none}
 @media (min-width:780px){
   body{background:var(--bg)}
-  /* 桌面上收成一块居中的立牌，而不是拉满整个 27 寸屏 */
+  /* Shrink to a centred upright card on desktop instead of stretching across a whole 27-inch screen */
   #app{
     left:50%; right:auto; top:50%; bottom:auto;
     width:min(660px,100%); height:min(100%,880px);
@@ -466,7 +466,7 @@ footer{flex:none;display:flex;gap:10px;
   color:var(--ink2);font:inherit;font-size:13.5px;cursor:pointer
 }
 .langrow .lang.on{background:var(--ink);color:var(--card);border-color:var(--ink);font-weight:600}
-/* 鼠标拖拽中：别让浏览器把它当成选中文字 */
+/* While mouse-dragging: don't let the browser treat it as a text selection */
 body.dragging,body.dragging *{cursor:grabbing !important;user-select:none !important}
 </style>
 </head>
@@ -479,9 +479,9 @@ body.dragging,body.dragging *{cursor:grabbing !important;user-select:none !impor
   </header>
   <div class="bar"><i id="prog" style="width:0%"></i></div>
   <div class="stage" id="stage">
-    <!-- 两张卡轮流当「当前卡」：下一张先在屏幕外渲染好，再滑进来。
-         只有一张卡的话，换卡必须「先把它推走 → 再重画 → 再推回来」，
-         中间那几百毫秒舞台上什么都没有，看起来就像在 loading。 -->
+    <!-- Two cards take turns being the "current card": the next one is rendered off-screen first, then slides in.
+         With a single card, switching would have to be "push it away → repaint → push it back", and for
+         those few hundred ms in between there is nothing on the stage — it looks exactly like loading. -->
     <div class="card" id="card"></div>
     <div class="card gone" id="card2"></div>
     <div class="done" id="done">
@@ -543,8 +543,8 @@ body.dragging,body.dragging *{cursor:grabbing !important;user-select:none !impor
   <button class="wide" id="syncLink" data-t="menu.copy_link"></button>
   <div class="row" id="copyKey"><span data-t="menu.copy_key"></span><span class="rc" data-t="menu.key_len"></span></div>
   <button class="wide" id="restore" data-t="menu.restore_local"></button>
-  <!-- 进度存在 localStorage 里，是按域名隔离的：换个域名（换托管、改自定义域名）
-       就读不到旧的了。有了导出/导入，进度能跟着人走，不依赖任何服务器。 -->
+  <!-- Progress lives in localStorage, which is partitioned by origin: change the domain (new host, new custom
+       domain) and the old data is unreachable. With export/import, progress follows the person and depends on no server. -->
   <button class="wide" id="expProg" data-t="menu.export"></button>
   <div class="krow">
     <input id="impIn" data-tp="menu.import_placeholder" autocapitalize="off"
@@ -556,8 +556,8 @@ body.dragging,body.dragging *{cursor:grabbing !important;user-select:none !impor
   <div class="row" id="shuffleRow"><span data-t="menu.shuffle"></span><span class="chk" style="margin-left:auto">✓</span></div>
   <div class="row" id="wrapRow"><span data-t="menu.wrap"></span><span class="chk" style="margin-left:auto">✓</span></div>
   <button class="wide" id="reset" data-t="menu.reset"></button>
-  <!-- 一行诊断：视口和安全区的真实数值。iOS 主屏幕 App 里这几个数和浏览器里
-       不一样，而且看不见摸不着，出问题只能靠猜。写出来，一张截图就能定位。 -->
+  <!-- One line of diagnostics: the real viewport and safe-area numbers. Inside an iOS home-screen app they differ
+       from the browser's, and you can't see or inspect them, so bugs are pure guesswork. Print them and a single screenshot pins it down. -->
   <div class="build"><span id="build"></span><span id="vp"></span></div>
 </div>
 
@@ -625,21 +625,21 @@ const store={
   },
   set(v){ try{ localStorage.setItem(KEY,JSON.stringify(v)); }catch(e){ mem=v; } }
 };
-/* 进度按【卡片标题】存，不按下标。cards.py 是按 section 排序生成的,
-   每天新增一张卡都会把它后面所有卡的下标顶掉——用下标存等于隔天洗一次进度。
-   每条各自带时间戳，跨设备合并时逐条取新的那条。
-   筛选类偏好（section / 概念题目 / 只看没记住 / 只看待练 / 乱序）也跟着同步：
-   它们决定「现在在练哪一批」，手机上调完，电脑打开就该是同一批。
-   【wrap（代码自动换行）故意不同步】它是屏幕宽度的函数不是意图的函数：
-   手机窄要开、桌面宽要关，同步它等于每次在一台设备上调整都会弄坏另一台。 */
+/* Progress is keyed by CARD TITLE, not by index. The build emits cards sorted by section, so a new card
+   added to the deck bumps the index of every card after it — keying by index would reshuffle progress on the next rebuild.
+   Each entry carries its own timestamp; a cross-device merge takes the newer one, entry by entry.
+   Filter preferences (section / concept-vs-problem / only unknown / only to-do / shuffle) sync as well:
+   they decide "which batch am I drilling right now" — tune it on the phone, open the laptop, it should be the same batch.
+   [wrap (code soft-wrap) is deliberately NOT synced] it's a function of screen width, not of intent:
+   on for a narrow phone, off for a wide desktop; syncing it means every adjustment on one device breaks the other. */
 let S = Object.assign({cards:{},todoM:{},secs:[],kinds:[],onlyTodo:false,
                        onlyUnknown:false,shuffled:false,wrap:true,prefsAt:0,
                        seed:0,viewCard:'',viewAt:0}, store.get());
 
-/* 偏好是整块替换（不像卡片那样逐条合并）—— 它们互相关联，
-   拆开取新的会拼出一个谁都没设过的组合。整块带一个时间戳，新的赢。 */
-// seed 和 shuffled 必须一起走：只同步「开了乱序」而不同步种子的话，
-// 两台设备各洗各的，顺序照样对不上。
+/* Preferences are replaced as a whole block (unlike cards, which merge entry by entry) — they're interrelated,
+   and picking the newest of each separately would assemble a combination nobody ever set. One timestamp for the block; newest wins. */
+// seed and shuffled must travel together: syncing "shuffle is on" without syncing the seed means
+// the two devices each shuffle their own way and the orders still don't match.
 const PREF_KEYS = ['secs','kinds','onlyTodo','onlyUnknown','shuffled','seed'];
 function prefsOut(){
   const o = {t: S.prefsAt || 0};
@@ -648,7 +648,7 @@ function prefsOut(){
 }
 function applyPrefs(p){
   if(!p || typeof p !== 'object') return false;
-  if((Number(p.t) || 0) <= (S.prefsAt || 0)) return false;   // 本地更新，不动
+  if((Number(p.t) || 0) <= (S.prefsAt || 0)) return false;   // local is newer, leave it alone
   PREF_KEYS.forEach(k => { if(p[k] !== undefined) S[k] = p[k]; });
   S.prefsAt = Number(p.t) || 0;
   return true;
@@ -668,7 +668,7 @@ function setLang(code){
   buildDeck(true); paint(); renderSecs();
 }
 
-if(Array.isArray(S.known)){          // 旧格式（下标数组）迁移一次
+if(Array.isArray(S.known)){          // one-time migration from the old format (index array)
   const t=now();
   S.known.forEach(i=>{ const c=CARDS[i]; if(c) S.cards[c.t]={k:1,t}; });
   delete S.known;
@@ -679,7 +679,7 @@ if(Array.isArray(S.todo)){
   delete S.todo;
 }
 
-const known = new Set();             // 运行时仍然用下标，渲染那套一行没动
+const known = new Set();             // the runtime still uses indices; not one line of the render code changed
 const todo  = new Set();
 function hydrate(){
   known.clear(); todo.clear();
@@ -690,7 +690,7 @@ function hydrate(){
 hydrate();
 document.body.classList.toggle('wrap', S.wrap!==false);
 
-/* 取消「记住了」也要留一条 k:0 的墓碑，否则合并时旧的 k:1 会把它顶回来 */
+/* Un-marking "got it" must still leave a k:0 tombstone, otherwise the old k:1 pushes it back on merge */
 function setKnown(i, on){
   const t = CARDS[i] && CARDS[i].t; if(!t) return;
   S.cards[t] = {k: on?1:0, t: now()};
@@ -708,7 +708,7 @@ function clearKnown(){
 
 let dirty = false;
 const save = ()=>{ store.set(S); dirty = true; backup(); schedulePush(); };
-/* 改的是偏好就走这个 —— 不打时间戳的话，另一台设备永远认为自己的更新 */
+/* Preference changes go through this one — without the timestamp, the other device forever believes its own copy is newer */
 const savePrefs = ()=>{ S.prefsAt = now(); save(); };
 
 /* ---------- deck ---------- */
@@ -722,9 +722,9 @@ function buildDeck(keepCurrent){
   if(S.onlyUnknown) ids = ids.filter(i=>!known.has(i));
   if(S.onlyTodo)    ids = ids.filter(i=>todo.has(CARDS[i].lc));
   if(!ids.length){ ids = CARDS.map((c,i)=>i).filter(i=>!S.secs.length||S.secs.includes(CARDS[i].s)); }
-  // 【用种子洗，不用 Math.random】同一个种子 + 同一批卡 = 同一个顺序，
-  // 于是「顺序」这件事只需要同步一个整数，不用同步整个下标数组 ——
-  // 下标数组隔天就废了：定时任务插一张新卡，后面所有下标全错位。
+  // [Shuffle with a seed, not Math.random] same seed + same set of cards = same order,
+  // so "the order" only needs a single integer synced, not a whole index array —
+  // and an index array goes stale anyway: a new card added to the deck shifts every index after it.
   if(S.shuffled){
     const r = rng(S.seed || 1);
     for(let i=ids.length-1;i>0;i--){ const j=Math.floor(r()*(i+1)); [ids[i],ids[j]]=[ids[j],ids[i]]; }
@@ -734,7 +734,7 @@ function buildDeck(keepCurrent){
   if(pos<0) pos=0;
 }
 
-/* mulberry32：32 位种子的确定性伪随机数，十行、无依赖、跨浏览器结果一致。 */
+/* mulberry32: deterministic pseudo-random numbers from a 32-bit seed — ten lines, no dependencies, identical results across browsers. */
 function rng(seed){
   let a = seed >>> 0;
   return function(){
@@ -746,10 +746,10 @@ function rng(seed){
 }
 const newSeed = ()=> (Date.now() ^ Math.floor(Math.random()*0x7fffffff)) >>> 0;
 
-/* 【位置存标题，不存下标】和进度同一个理由：牌组每天都在长，
-   下标会整体后移，存下标等于隔天跳到另一张卡上。
-   只在用户真的换卡时打时间戳 —— 页面刚打开时的那次渲染不算「我移动了」，
-   否则每台设备一开机就用「我在第 1 张」去覆盖远端的真实位置。 */
+/* [Position stores a title, not an index] same reason as progress: the deck keeps growing, indices
+   shift wholesale, and a stored index lands you on a different card once a new card is added.
+   Timestamp only when the user actually changes card — the render on page open doesn't count as "I moved",
+   otherwise every device overwrites the remote's real position with "I'm on card 1" the moment it boots. */
 function noteView(){
   const c = CARDS[deck[pos]]; if(!c || S.viewCard === c.t) return;
   S.viewCard = c.t; S.viewAt = now();
@@ -761,24 +761,24 @@ function applyView(v){
   if((Number(v.t) || 0) <= (S.viewAt || 0)) return false;
   S.viewCard = v.card; S.viewAt = Number(v.t) || 0;
   const idx = IDX.get(v.card);
-  if(idx === undefined) return false;              // 这张卡这个版本里没有
+  if(idx === undefined) return false;              // this card doesn't exist in this version
   const i = deck.indexOf(idx);
-  if(i < 0) return false;                          // 被当前筛选挡掉了
+  if(i < 0) return false;                          // filtered out by the current filters
   pos = i; flipped = false; shown = 0;
   return true;
 }
 
 /* ---------- render ---------- */
 const el = s=>document.querySelector(s);
-const MOUSE = matchMedia('(pointer:fine)').matches;   // 桌面：文案讲“点击/拖拽”而不是“轻点/滑动”
+const MOUSE = matchMedia('(pointer:fine)').matches;   // desktop: copy says "click/drag" instead of "tap/swipe"
 const stage=el('#stage'), doneBox=el('#done');
-/* 两层卡片。card 永远指向「正在看的那张」，other() 是备用层：
-   换卡/翻面时先把新内容画进备用层（此时它在屏幕外，用户看不见），
-   画完再让两层同时动 —— 舞台上任何一刻都有内容，不会再出现空屏。 */
+/* Two card layers. card always points at "the one being looked at"; other() is the spare layer:
+   on switch/flip the new content is painted into the spare first (it's off-screen at that point, the user can't see it),
+   and only then do both layers move together — the stage has content at every instant, no more blank screen. */
 const cardA=el('#card'), cardB=el('#card2');
 let card = cardA;
 const other = ()=> card===cardA ? cardB : cardA;
-let peerDir = 0;          // 边上贴着的那张是哪个方向的（0 = 没有）
+let peerDir = 0;          // which side the card parked at the edge is on (0 = none)
 
 function faceHTML(c, back){
   const prob = c.k === 'P';
@@ -800,7 +800,7 @@ function faceHTML(c, back){
     </div><div class="cue">⌄</div>`;
 }
 
-/* 图解要一眼看全，横向滚就失去意义了 —— 缩到整张图能塞进卡片宽度为止 */
+/* A diagram must be taken in at a glance; horizontal scrolling defeats the point — shrink until the whole figure fits the card width */
 function fitDia(root){
   root.querySelectorAll('.diawrap').forEach(w=>{
     const d = w.querySelector('.dia'); if(!d) return;
@@ -813,7 +813,7 @@ function fitDia(root){
   });
 }
 
-/* 等宽字体一个字符的宽度 = 字号 × 固定比例，量一次就够，之后所有卡片直接算。 */
+/* One monospace character's width = font size × a fixed ratio; measuring once is enough, every card afterwards just computes it. */
 let MONO = 0;
 function monoRatio(){
   if(MONO) return MONO;
@@ -830,7 +830,7 @@ function monoRatio(){
 function fitCode(root){
   const wrapMode=document.body.classList.contains('wrap');
   const ratio=monoRatio();
-  root.querySelectorAll('.body pre:not(.dia)').forEach(p=>{   // .dia 由 fitDia 管，别被套两层
+  root.querySelectorAll('.body pre:not(.dia)').forEach(p=>{   // .dia belongs to fitDia; don't wrap it twice
     if(!p.parentElement.classList.contains('prewrap')){
       const w=document.createElement('div'); w.className='prewrap';
       p.parentNode.insertBefore(w,p); w.appendChild(p);
@@ -840,17 +840,17 @@ function fitCode(root){
         z.textContent='⤢'; z.setAttribute('aria-label',T('code.expand_aria')); w.appendChild(z);
       }
     }
-    // 以前是「缩 0.3px、量一次、再缩」最多循环 40 次，每次都强制同步布局；
-    // 一张解法面光这里就要 35ms，正好卡在你翻开卡片准备滑动的那一刻。
-    // 现在最宽多少列由构建期写进 data-w，字号一次算出来。
+    // This used to be "shrink 0.3px, measure, shrink again" looped up to 40 times, each a forced synchronous layout;
+    // one solution face burned 35ms right here, exactly at the moment you flip the card and go to swipe.
+    // Now the widest column count is written into data-w at build time and the font size is computed in one go.
     const cols = +(wrapMode ? p.dataset.ww : p.dataset.w) || 44;
     const cs = getComputedStyle(p);
     const avail = p.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     const min = wrapMode ? 9.6 : 9.8;
     let fs = Math.max(min, Math.min(12.4, avail / (cols * ratio)));
     p.style.fontSize = fs.toFixed(2) + 'px';
-    // 算完再实测一次做校正。字体回退（中文走另一套字形）会让估算有偏差，
-    // 一次 scrollWidth 就能纠正 —— 比原来量四十次便宜得多。
+    // Then measure once to correct. Font fallback (CJK text goes through a different set of glyphs) skews the estimate,
+    // and a single scrollWidth read fixes it — far cheaper than the forty measurements before.
     if(!wrapMode && p.scrollWidth > p.clientWidth + 1){
       fs = Math.max(min, fs * p.clientWidth / p.scrollWidth);
       p.style.fontSize = fs.toFixed(2) + 'px';
@@ -892,11 +892,11 @@ function bindTools(c, root){
   };
 }
 
-/* ---------- 代码全屏 ---------- */
+/* ---------- code fullscreen ---------- */
 const codefs = el('#codefs');
 let cfSize = 13;
 function openCode(pre){
-  el('#cfPre').innerHTML = pre.innerHTML;      // 高亮标记原样搬过去
+  el('#cfPre').innerHTML = pre.innerHTML;      // highlight markup carried over as-is
   const c = CARDS[deck[pos]];
   el('#cfTitle').textContent = c ? c.t : '';
   codefs.classList.toggle('wrap', document.body.classList.contains('wrap'));
@@ -918,14 +918,14 @@ const setSize = d => {
 el('#cfPlus').onclick  = ()=>setSize(1);
 el('#cfMinus').onclick = ()=>setSize(-1);
 
-/* 深入 → pattern chip 跳到对应概念卡。若该概念卡被 section/kind 过滤掉了，
-   就把它临时插到当前卡后面，而不是推翻用户的筛选。 */
+/* Deep dive → the pattern chip jumps to the matching concept card. If that concept card is filtered out by
+   section/kind, splice it in temporarily after the current card rather than overriding the user's filters. */
 function bindDeep(root){
   root.querySelectorAll('.zoom').forEach(z => z.onclick = e => {
     e.stopPropagation();
     const host = z.classList.contains('ctl') && z.parentElement.classList.contains('codelab')
-      ? z.parentElement.nextElementSibling      // 标题行 -> 下面那个代码块
-      : z.parentElement;                        // 角上的按钮 -> 自己所在的 prewrap
+      ? z.parentElement.nextElementSibling      // heading row -> the code block below it
+      : z.parentElement;                        // corner button -> its own prewrap
     const pre = host && host.querySelector ? host.querySelector('pre') : null;
     if(pre) openCode(pre);
   });
@@ -933,12 +933,12 @@ function bindDeep(root){
     e.stopPropagation();
     goToCard(+b.dataset.i);
   });
-  // 变种题那一行是 <a>，让它自己走默认行为开 LeetCode，只是别把点击冒泡成翻面
+  // the variant row is an <a>; let its default action open LeetCode, just don't let the click bubble up into a flip
   root.querySelectorAll('a.vgo').forEach(a => a.onclick = e => e.stopPropagation());
 }
 
-/* 跳到某张卡。若它被 section/kind 筛掉了，就临时插到当前卡后面，
-   而不是推翻用户的筛选。 */
+/* Jump to a card. If it's filtered out by section/kind, splice it in temporarily after the current card
+   rather than overriding the user's filters. */
 function goToCard(idx){
   let i = deck.indexOf(idx);
   if(i < 0){ deck.splice(pos+1, 0, idx); i = pos+1; }
@@ -947,8 +947,8 @@ function goToCard(idx){
   paint(); noteView();
 }
 
-/* 概念卡的 hook 是一句话提问，大字本身就是重点。
-   题目卡是一段题面，用同样的大字会把整张卡糊满，读起来反而累 —— 起手就小一号。 */
+/* A concept card's hook is a one-line question; the big type itself is the point.
+   A problem card's hook is a paragraph of statement; the same big type smears across the whole card and is tiring to read — start one size smaller. */
 function fitHook(root, idx){
   const w=root.querySelector('.hookwrap'), h=root.querySelector('.hook');
   if(!w||!h) return;
@@ -960,21 +960,21 @@ function fitHook(root, idx){
 
 function cue(root){
   const f=root.querySelector('.face.scroll'); if(!f) return;
-  // scrollHeight 在滚动期间不会变，却是一次强制同步布局 —— 每帧读它就是每帧
-  // 卡一下主线程。这里只在这张卡渲染完时算一次。
+  // scrollHeight doesn't change during a scroll, yet reading it is a forced synchronous layout — reading it every
+  // frame stalls the main thread every frame. Compute it once here, when this card has finished rendering.
   const canScroll = f.scrollHeight > f.clientHeight + 4;
   let shown = null;
   const upd = ()=>{
     const want = canScroll && f.scrollTop < 16;
-    if(want === shown) return;          // 状态没变就别碰 class，省掉整张卡的样式重算
+    if(want === shown) return;          // don't touch the class if the state hasn't changed; saves a style recalc of the whole card
     shown = want;
     root.classList.toggle('hasmore', want);
   };
   upd(); f.addEventListener('scroll', upd, {passive:true});
 }
 
-/* 把某张卡渲染进某一层。注意它不碰 pos / flipped —— 备用层画的往往
-   不是「当前卡」，全局状态要等动画真正切过去时才改。 */
+/* Render a card into a layer. Note it never touches pos / flipped — what gets painted into the spare layer
+   is usually NOT the "current card"; global state changes only when the animation actually switches over. */
 function renderFace(root, idx, back){
   const c = CARDS[idx]; if(!c) return;
   root.innerHTML = faceHTML(c, back);
@@ -988,8 +988,8 @@ function paint(){
   paintChrome();
 }
 
-/* 顶栏、进度条、按钮 —— 跟着「当前卡」走，和卡面渲染分开，
-   这样动画切换的瞬间可以只更新它们。 */
+/* Top bar, progress bar, buttons — they follow the "current card" and are kept separate from face rendering,
+   so at the instant of an animated switch only they need updating. */
 function paintChrome(){
   if(!deck.length) return;
   const c = CARDS[deck[pos]];
@@ -1004,8 +1004,8 @@ function paintChrome(){
   el('#navNext').disabled = pos >= deck.length - 1;
 }
 
-/* 动画收尾：把两层都恢复成确定状态，闲置层退回 display:none。
-   任何一条路径结束都必须经过它，否则卡片会停在半空中。 */
+/* Animation wrap-up: restore both layers to a known state, idle layer back to display:none.
+   Every path must end by going through this, or the card is left hanging mid-air. */
 function settle(){
   bump();
   [cardA, cardB].forEach(c=>{
@@ -1013,18 +1013,18 @@ function settle(){
     c.classList.remove('anim','slide','hold');
   });
   const idle = other();
-  idle.classList.add('gone'); idle.innerHTML='';   // 闲置层清空，绝不可能残留上一张卡
+  idle.classList.add('gone'); idle.innerHTML='';   // idle layer emptied; the previous card can never linger
   card.classList.remove('gone');
   peerDir = 0; busy = false;
 }
 
-/* 收尾的「代」号：任何新动作（翻面、换卡、又开始拖）都会 bump 一次，
-   让上一轮排队中的 settle 作废。否则「拖一下松手、立刻再拖」时，
-   上一次排的 settle 会在新一次拖拽中途把备用层清掉。 */
+/* Generation counter for the wrap-up: any new action (flip, switch, starting another drag) bumps it once,
+   voiding the settle queued by the previous round. Otherwise, on "drag, release, drag again immediately",
+   the previously queued settle wipes the spare layer in the middle of the new drag. */
 let gen = 0, watchdog = 0;
 function bump(){ clearTimeout(watchdog); return ++gen; }
-/* ms 后收尾；同时留一个 1.2s 的兜底闹钟，任何一条路径没走到 settle
-   都不会让卡片永远停在屏幕外。 */
+/* Settle after ms; also arm a 1.2s fallback alarm so that any path that never reaches settle
+   can't leave the card parked off-screen forever. */
 function settleIn(ms){
   const g = bump();
   const fire = ()=>{ if(g===gen) settle(); };
@@ -1032,29 +1032,29 @@ function settleIn(ms){
   watchdog = setTimeout(fire, 1200);
 }
 
-/* 【为什么是两层，而不是一张卡自己动】
-   一张卡的话，换卡只能「推走 → 重画 → 推回来」，重画必须等推走的动画结束
-   才能做（否则用户会看见内容在眼前突变），于是中间必然有半秒舞台是空的 ——
-   这就是「每次滑动后都有半秒 loading」。
-   两层：新卡先画在屏幕外的备用层里，画完两层同时滑，用户全程都看得见东西。
+/* [Why two layers, instead of one card moving itself]
+   With one card, switching can only be "push away → repaint → push back", and the repaint has to wait for the
+   push-away animation to finish (or the user sees the content mutate in front of their eyes), so the stage is
+   inevitably empty for half a second in between — that's the "half-second loading after every swipe".
+   Two layers: the new card is painted into the off-screen spare first, then both slide together; the user sees content the whole time.
 
-   【不要用 requestAnimationFrame 摆「起始位置」】
-   iOS 在手势前后、页面被遮挡或内存紧张时会推迟甚至丢掉 rAF，一旦丢了，
-   卡片就永远停在看不见的位置。改用强制回流：同一个任务里读一次 offsetWidth
-   让上一行立刻落地，下一行直接写终态，完全不依赖回调被调度。 */
+   [Don't use requestAnimationFrame to set the "start position"]
+   iOS defers or outright drops rAF around gestures, when the page is covered, or under memory pressure; once
+   dropped, the card is parked out of sight forever. Force a reflow instead: read offsetWidth once in the same task
+   so the previous line lands immediately, then write the end state directly on the next line — no dependence on a callback ever being scheduled. */
 function flip(){
   if(busy) return;
   busy = true;
   const out = card, inc = other(), nf = !flipped;
-  // 先画：此时 inc 已经立起来侧对着用户，看不见，画多久都不影响观感
+  // paint first: inc is already turned edge-on to the user and invisible, so painting can take as long as it likes
   inc.classList.remove('gone');
   inc.style.transition='none';
   inc.style.transform='rotateY(-90deg) scale(.96)';
-  inc.style.opacity='.6';        // 别压太暗：翻面途中卡片本来就是侧对着看不见，
-                                 // 再叠一层半透明就会读成「黑了一下」而不是「翻过去了」
+  inc.style.opacity='.6';        // don't dim too far: mid-flip the card is already edge-on and invisible anyway;
+                                 // stacking translucency on top reads as "it went dark for a moment" instead of "it flipped over"
   inc.style.zIndex='2'; out.style.zIndex='1';
   renderFace(inc, deck[pos], nf);
-  void inc.offsetWidth;                       // 起始姿态立刻落地
+  void inc.offsetWidth;                       // start pose lands immediately
   out.classList.add('anim');
   out.style.transform='rotateY(90deg) scale(.96)'; out.style.opacity='.6';
   setTimeout(()=>{
@@ -1062,9 +1062,9 @@ function flip(){
     out.style.opacity='0';
     inc.classList.add('anim');
     inc.style.transition='';
-    // 转出去用 ease-in（起步慢、甩出去快），转回来必须用 ease-out：
-    // 两半都用 ease-in 的话，新卡是「从侧面慢慢立起来」，正好在几乎看不见的
-    // 那几度上磨蹭最久，翻面就会读成又黑了一下。
+    // Turning out uses ease-in (slow start, fast fling); turning back in MUST be ease-out:
+    // with ease-in on both halves the new card "slowly rises up from edge-on", dawdling longest in exactly
+    // the few near-invisible degrees, and the flip reads as another blackout.
     inc.style.transitionTimingFunction='ease-out';
     inc.style.transform='rotateY(0deg) scale(1)'; inc.style.opacity='1';
     paintChrome();
@@ -1083,8 +1083,8 @@ function go(dir){
   }
   busy = true;
   const out = card, inc = other();
-  // 拖拽过程中多半已经把下一张画好贴在边上了（peerDir），那就直接接着它动，
-  // 手指松开到卡片滑到位是连续的，一帧都不用等。
+  // During a drag the next card has most likely already been painted and parked at the edge (peerDir), so just
+  // carry on from it: finger-up to card-in-place is one continuous motion, not a single frame of waiting.
   if(peerDir !== dir){
     inc.classList.remove('gone');
     inc.style.transition='none'; inc.style.opacity='1';
@@ -1112,22 +1112,22 @@ function mark(ok){
   if(pos>=deck.length-1){ paint(); finish(); } else go(1);
 }
 
-/* ---------- 手势：左右翻卡 ----------
-   代码块【不参与】卡片手势：在 <pre> 上横滑是滚代码，不是换卡。这样宽代码
-   在卡片内也能挪动；真要看全，右上角 ⤢ 进全屏（那里没有翻页手势来抢轴）。 */
+/* ---------- gestures: swipe left/right between cards ----------
+   Code blocks do NOT take part in the card gesture: a horizontal swipe on a <pre> scrolls code, not cards. That way
+   wide code can be nudged inside the card; to really see all of it, ⤢ top-right opens fullscreen (no paging gesture there to fight over the axis). */
 let sx=0, sy=0, st=0, drag=false, lock=null;
 let onCtl=false;
 const noSwipe = t => t && t.closest && (t.closest('.ctl') || t.closest('pre'));
 
-/* 拖到一半时，下一张卡就已经贴在屏幕边上跟着手指走了 ——
-   松手前就能瞄到它，松手后是接着动，不存在「等它加载」这回事。 */
+/* Halfway through a drag the next card is already parked at the screen edge following the finger —
+   you can glimpse it before letting go, and after letting go it keeps moving; there is no such thing as "waiting for it to load". */
 function preparePeer(dir){
   if(peerDir === dir) return;
   const idle = other(), next = pos + dir;
   peerDir = 0;
   idle.classList.add('gone');
-  if(next < 0 || next >= deck.length) return;     // 到头了，边上没有下一张
-  bump();                                          // 让排队中的 settle 作废
+  if(next < 0 || next >= deck.length) return;     // at the end; no next card to park at the edge
+  bump();                                          // void any queued settle
   idle.classList.remove('gone');
   idle.style.transition='none'; idle.style.opacity='1';
   idle.style.transform=`translateX(${dir*112}%)`;
@@ -1161,23 +1161,23 @@ function releaseCard(){
 stage.addEventListener('touchstart', e=>{
   if(busy||doneBox.classList.contains('on')) return;
   onCtl = !!noSwipe(e.target);
-  if(onCtl) return;                       // 按钮和代码块自己处理
-  bump();                                 // 上一次松手排的收尾作废，别在这次拖拽中途把卡复位
+  if(onCtl) return;                       // buttons and code blocks handle themselves
+  bump();                                 // void the wrap-up queued by the last release; don't reset the card in the middle of this drag
   const t=e.touches[0]; sx=t.clientX; sy=t.clientY; st=Date.now(); drag=true; lock=null;
 },{passive:true});
 
-/* 【必须是 passive】非 passive 的 touchmove 会让浏览器每一帧都先等 JS 返回
-   才能滚动，竖向滑动因此发涩 —— 解法面内容多，这个代价尤其明显。
-   不再 preventDefault，横向由上面的 touch-action 保证浏览器不会插手。 */
+/* [MUST be passive] A non-passive touchmove makes the browser wait for JS to return on every single frame
+   before it can scroll, so vertical scrolling feels gritty — especially costly on the content-heavy solution face.
+   No more preventDefault; the touch-action above guarantees the browser keeps its hands off the horizontal axis. */
 stage.addEventListener('touchmove', e=>{
   if(!drag) return;
   const t=e.touches[0], dx=t.clientX-sx, dy=t.clientY-sy;
   if(lock===null){
     if(Math.abs(dx)<6 && Math.abs(dy)<6) return;
-    lock = Math.abs(dx) > Math.abs(dy)*1.4 ? 'x' : 'y';   // 纵向留给背面滚动
+    lock = Math.abs(dx) > Math.abs(dy)*1.4 ? 'x' : 'y';   // vertical is left to the back face's scrolling
   }
   if(lock!=='x') return;
-  preparePeer(dx<0 ? 1 : -1);      // 反向拖回去也会换成另一边那张
+  preparePeer(dx<0 ? 1 : -1);      // dragging back the other way swaps in the card from the other side
   dragCard(dx);
 },{passive:true});
 
@@ -1193,12 +1193,12 @@ stage.addEventListener('touchend', e=>{
   if(lock===null && dt<320 && Math.abs(dx)<10 && Math.abs(dy)<10) flip();
 },{passive:true});
 
-/* ---------- 鼠标：拖拽换卡 + 点击翻面（桌面） ----------
-   触屏那套用的是 touch 事件，鼠标一个都收不到，所以桌面上滑不动卡。 */
+/* ---------- mouse: drag to switch cards + click to flip (desktop) ----------
+   The touch path uses touch events, not one of which a mouse ever receives, so cards couldn't be swiped on desktop. */
 let msx=0, msy=0, mst=0, mdrag=false, mlock=null, mfar=false;
 
 stage.addEventListener('mousedown', e=>{
-  if(!MOUSE) return;      // iOS 点一下也会补发一组合成 mouse 事件，别让它插进翻面动画
+  if(!MOUSE) return;      // iOS also fires a set of synthetic mouse events after a tap; don't let them cut into the flip animation
   if(e.button!==0 || busy || doneBox.classList.contains('on')) return;
   if(noSwipe(e.target)) return;
   bump();
@@ -1230,11 +1230,11 @@ addEventListener('mouseup', e=>{
 });
 
 stage.addEventListener('click', e=>{
-  if(!MOUSE) return;                                // 触屏走 touchend 那条路
+  if(!MOUSE) return;                                // touch goes through the touchend path
   if(doneBox.classList.contains('on')) return;
-  if(mfar){ mfar=false; return; }                   // 刚拖完，不要顺手翻面
+  if(mfar){ mfar=false; return; }                   // just finished a drag; don't flip on the way out
   if(e.target.closest && e.target.closest('.ctl')) return;
-  if(window.getSelection && String(window.getSelection())) return;   // 在选代码
+  if(window.getSelection && String(window.getSelection())) return;   // selecting code
   flip();
 });
 
@@ -1250,7 +1250,7 @@ addEventListener('keydown', e=>{
   if(e.key==='ArrowLeft'){go(-1);return;}
   if(e.key==='j'||e.key==='J'){mark(true);return;}
   if(e.key==='k'||e.key==='K'){mark(false);return;}
-  if(e.key>='1' && e.key<='3'){                     // 1/2/3 = 逐级放提示
+  if(e.key>='1' && e.key<='3'){                     // 1/2/3 = reveal hints one level at a time
     const c=CARDS[deck[pos]];
     if(!flipped && c && c.k==='P' && c.hints && +e.key<=c.hints.length){
       shown=Math.max(shown,+e.key); paint();
@@ -1266,8 +1266,8 @@ el('#menu').onclick=openSheet; scrim.onclick=closeSheet;
 sheet.querySelector('.grab').onclick=closeSheet;
 addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet();});
 
-/* 展开状态只存在内存里，不进 prefs —— 它是「我现在在翻哪一类」，
-   不是设置。跨设备同步这个只会互相打架。 */
+/* Expanded state lives in memory only, never in prefs — it's "which topic am I browsing right now",
+   not a setting. Syncing it across devices would only make them fight each other. */
 let sOpen = new Set();
 
 function renderSecs(){
@@ -1311,21 +1311,21 @@ function renderSecs(){
     const btn=document.createElement('button'); btn.className='only';
     btn.textContent=T('menu.only_topic', {n});
     btn.onclick=()=>{
-      // 把牌组收成这一类，并且清掉另外两个过滤器 —— 主动复习一类时，
-      // 「只看没记住的」会把已经记住的那些藏起来，正好和目的相反。
+      // Narrow the deck to this topic and clear the other two filters — when deliberately reviewing a topic,
+      // "only unknown" would hide the ones already learned, the exact opposite of the intent.
       S.secs=[name]; S.onlyTodo=false; S.onlyUnknown=false;
       savePrefs(); buildDeck(false); flipped=false; shown=0;
       doneBox.classList.remove('on'); paint(); noteView(); closeSheet();
     };
     body.appendChild(btn);
 
-    // 概念卡排在前面：复习一类时，先过一遍 pattern 模板，再看题目怎么套。
+    // Concept cards first: when reviewing a topic, go over the pattern template first, then see how the problems apply it.
     idxs.sort((a,b)=>(CARDS[a].k==='C'?0:1)-(CARDS[b].k==='C'?0:1));
     idxs.forEach(i=>{
       const c=CARDS[i], isK=known.has(i), isT=todo.has(c.lc);
       const row=document.createElement('div'); row.className='citem';
-      // 「记住了」和「待练」不是互斥的：一道题可以既记得住、又想再刷一遍。
-      // 所以左边的记号只表示记没记住，待练单独挂一个标签，两个状态都看得见。
+      // "Got it" and "to-do" aren't mutually exclusive: a problem can be remembered AND still due another pass.
+      // So the mark on the left only says known-or-not; to-do gets its own separate tag, and both states stay visible.
       row.innerHTML=`<span class="st ${isK?'k':''}">${isK?'✓':'○'}</span>
         <span class="tx">${c.t}</span>
         ${isT?`<span class="tag todo">${T('tag.todo')}</span>`:''}
@@ -1338,7 +1338,7 @@ function renderSecs(){
     host.appendChild(g);
   });
 
-  // 只有在筛过之后才出现 —— 平时不占地方，被筛窄了又能一键回到全部。
+  // Only appears once a filter is applied — takes no room normally, and once narrowed gets you back to everything in one tap.
   if(S.secs.length){
     const back=document.createElement('button'); back.className='wide';
     back.textContent=T('menu.restore_all', {k: S.secs.length, n: names.length});
@@ -1366,7 +1366,7 @@ function renderSecs(){
     r.onclick=()=>{ goToCard(c.n-1); closeSheet(); };
     tl.appendChild(r);
   });
-  // 变种题也能加进待练 —— 它们没有卡片，点了直接开 LeetCode
+  // Variants can go on the to-do list too — they have no card, so tapping opens LeetCode directly
   VARIANTS.filter(v=>todo.has(v.lc)).forEach(v=>{
     const r=document.createElement('div'); r.className='row';
     r.innerHTML=`<span class="sw" style="background:${v.c};opacity:.45"></span>
@@ -1379,8 +1379,8 @@ function renderSecs(){
   el('#shuffleRow').querySelector('.chk').classList.toggle('on',S.shuffled);
   el('#wrapRow').querySelector('.chk').classList.toggle('on',S.wrap!==false);
 }
-/* 变种题面板：按 section 折叠，默认全收起来。134 条平铺开会把菜单撑成一条长龙，
-   而且它们本来就是「需要的时候去翻」，不是每天要扫的东西。 */
+/* Variants panel: collapsed by section, all closed by default. 134 entries laid out flat would stretch the menu into
+   a mile-long list, and they're "look it up when you need it" material anyway, not something to scan every day. */
 let vOpen = new Set();
 function renderVars(){
   const host = el('#varList'); host.innerHTML = '';
@@ -1407,7 +1407,7 @@ function renderVars(){
     items.forEach(v=>{
       const row = document.createElement('div');
       row.className = 'vitem';
-      // 一道题常常挂在两三张母题卡下面，把来源都列出来才知道它在练什么
+      // a problem often hangs under two or three parent cards; listing every source shows what it's actually drilling
       const from = v.from.map(f=>`${f.t.replace(/^LC \d+ · /,'')} → ${f.d}`).join('<br>');
       row.innerHTML = `<div class="vinfo">
           <a target="_blank" rel="noopener"
@@ -1462,20 +1462,20 @@ el('#yes').onclick=()=>mark(true);
 el('#no').onclick=()=>mark(false);
 el('#again').onclick=()=>{doneBox.classList.remove('on');buildDeck(false);flipped=false;paint();};
 
-/* ---------- 跨设备同步 ----------
-   密钥从网址 #k=… 读一次就存进 localStorage，然后把 hash 从地址栏抹掉。
-   每次同步是一个 POST 往返：把本机的 doc 发上去，服务端逐条按时间戳合并后
-   把合并结果发回来。没有单独的「拉取」——合并本身就是拉取。 */
+/* ---------- cross-device sync ----------
+   The key is read from the URL's #k=… and stored in localStorage and a cookie; it stays in the address bar (see pinKey).
+   Each sync is one POST round trip: send this device's doc up, the server merges entry by entry on timestamps
+   and sends the merged result back. There is no separate "pull" — the merge itself is the pull. */
 const SKEY = 'gc_sync_key', SYNC_URL = '/api/state';
 
-/* 密钥【故意留在地址栏里】，不要再 replaceState 抹掉它。
-   iOS 的主屏幕 App 有一个和 Safari 完全隔离的存储罐 —— localStorage、cookie、
-   Service Worker 都不共享。抹掉 hash 之后「添加到主屏幕」抓到的是不带密钥的
-   网址，主屏幕那个 App 一启动就是空的，看起来就像「进度被清了」。
-   把 k 留在 URL 上，图标本身就带着密钥，Safari 隔 7 天清 localStorage（ITP）
-   之后也能自己恢复。代价是密钥在地址栏可见 —— 它只护着刷题进度，值。 */
-/* localStorage 会被 iOS 的存储清理带走。cookie 走的是另一条清理路径，
-   多存一份，两个只要活下来一个，密钥就还在。 */
+/* The key is DELIBERATELY left in the address bar; don't replaceState it away again.
+   An iOS home-screen app has a storage jar completely isolated from Safari's — localStorage, cookies and
+   Service Workers are all unshared. Wipe the hash and "Add to Home Screen" captures a URL without the key;
+   that home-screen app boots up empty, which looks exactly like "my progress got wiped".
+   Leave k in the URL and the icon itself carries the key, so it can recover on its own even after Safari
+   clears localStorage at 7 days (ITP). The cost is a key visible in the address bar — it only guards study progress. Worth it. */
+/* localStorage gets swept away by iOS storage eviction. Cookies go through a different eviction path,
+   so store a second copy: as long as either one survives, the key is still there. */
 function keyCookie(v){
   try{
     if(v === undefined){
@@ -1488,10 +1488,10 @@ function keyCookie(v){
 }
 
 function readKey(){
-  // 大小写都认。密钥是十六进制，大写小写是同一把钥匙，但只写 [a-f0-9] 的话，
-  // 地址栏里带一个大写字母就整条匹配不上，界面显示「未开启」——
-  // 而菜单里那个输入框（setKey）是先转小写再校验的，于是同一把密钥
-  // 「粘进输入框能用、放进链接不能用」，非常难猜。
+  // Accept both cases. The key is hex, so upper and lower case are the same key, but with only [a-f0-9]
+  // a single capital letter in the address bar fails the whole match and the UI shows "off" —
+  // while the input box in the menu (setKey) lowercases before validating, so the very same key
+  // "works when pasted into the box, fails when put in the link", which is extremely hard to guess.
   const m = /[#&]k=([a-fA-F0-9]{32})\b/.exec(location.hash || '');
   if(m){
     const k = m[1].toLowerCase();
@@ -1501,17 +1501,17 @@ function readKey(){
   }
   let k = '';
   try{ k = localStorage.getItem(SKEY) || localStorage.getItem('cf_sync_key') || ''; }catch(e){}
-  if(!k) k = keyCookie();                       // localStorage 被清了，cookie 还在
+  if(!k) k = keyCookie();                       // localStorage was cleared, the cookie survived
   if(k){ try{ localStorage.setItem(SKEY, k); }catch(e){} keyCookie(k); }
   return k;
 }
 let SK = readKey();
 
-/* 【密钥必须一直留在地址栏里】这是「记录又没了」的真正原因：
-   密钥从 localStorage 读出来时，地址栏是干净的；这时候「添加到主屏幕」，
-   iOS 抓走的就是一个不带密钥的网址。主屏幕 App 的存储和 Safari 完全隔离，
-   新图标启动 = 空罐子 + 没有密钥 = 一片空白，而且看不出是为什么。
-   只要有密钥就把它写回 hash，无论它是从哪儿来的。 */
+/* [The key MUST stay in the address bar at all times] This is the real cause of "my progress is gone again":
+   when the key comes out of localStorage, the address bar is clean; "Add to Home Screen" at that moment
+   hands iOS a URL without the key. The home-screen app's storage is fully isolated from Safari's, so
+   new icon launch = empty jar + no key = a blank slate, with no visible reason why.
+   Whenever there is a key, write it back into the hash, no matter where it came from. */
 function pinKey(){
   if(SK && location.hash.indexOf('k=') < 0){
     try{ history.replaceState(null, '', location.pathname + location.search + '#k=' + SK); }
@@ -1522,8 +1522,8 @@ pinKey();
 
 const canSync = ()=> !!SK && /^https?:$/.test(location.protocol);
 
-/* 手动重新连接：换设备、清了缓存、或者主屏幕 App 是个新罐子时的兜底。
-   不用去翻当初那条链接，把密钥粘进来就行。 */
+/* Manual reconnect: the fallback for a new device, a cleared cache, or a home-screen app that is a fresh jar.
+   No need to dig up the original link; just paste the key in. */
 function setKey(k){
   k = String(k||'').trim().toLowerCase().replace(/^.*[#&]k=/, '').slice(0, 32);
   if(!/^[a-f0-9]{32}$/.test(k)) return false;
@@ -1540,8 +1540,8 @@ function setSync(m){ syncMsg = m; const n = document.getElementById('syncTxt'); 
 
 function snapshot(){ return {v:1, cards:S.cards||{}, todoM:S.todoM||{}, prefs:prefsOut(), view:viewOut()}; }
 
-/* 逐条取时间戳新的那条。和 netlify/functions/state.mjs 里的规则必须一致，
-   两边用同一套合并，同步就没有「谁覆盖谁」这回事。 */
+/* Take the newer entry by timestamp, one by one. Must match the rule in sync/netlify/functions/state.mjs;
+   with both sides using the same merge, sync has no such thing as "who overwrites whom". */
 function mergeMap(a, b){
   const out = Object.assign({}, a || {});
   for(const [k, v] of Object.entries(b || {})){
@@ -1552,8 +1552,8 @@ function mergeMap(a, b){
   return out;
 }
 
-/* 本地兜底快照：只在「记住的张数比上次多」时覆盖，所以它永远是历史最好成绩。
-   同步再怎么出问题，菜单里点一下就能捞回来。 */
+/* Local fallback snapshot: only overwritten when the "cards known" count hasn't dropped below last time's, so it is always the all-time best.
+   However badly sync misbehaves, one tap in the menu fishes it back. */
 const BKEY = 'gc_v1_bak';
 function backup(){
   try{
@@ -1593,35 +1593,35 @@ async function sync(){
       body: JSON.stringify({k: SK, doc: snapshot()})});
     if(!r.ok) throw new Error('HTTP ' + r.status + ' ' + (await r.text()).slice(0,80));
     const m = await r.json();
-    // 【绝不用远端结果替换本地】——这条是上一版丢数据的直接原因。
-    // 服务端只要因为任何理由返回空（函数没部署好、请求体没送到、换了 site 导致
-    // blob 是新的），替换就等于当场清空进度，而且下一行立刻写进 localStorage。
-    // 改成和服务端同一套逐条时间戳合并：本地只会前进，不会被截断。
+    // [NEVER replace local with the remote result] — this was the direct cause of the previous version losing data.
+    // If the server returns empty for any reason whatsoever (function not deployed, request body never arrived,
+    // a redeploy that starts with a fresh blob store), replacing wipes progress on the spot, and the next line writes it straight into localStorage.
+    // Use the same per-entry timestamp merge as the server instead: local only ever moves forward, never gets truncated.
     S.cards = mergeMap(S.cards, m.cards);
     S.todoM = mergeMap(S.todoM, m.todoM);
     const prefsChanged = applyPrefs(m.prefs);
     store.set(S); hydrate(); dirty = false;
     backup();
-    // 只有远端真的带来了变化才重排牌组，否则会在你翻卡翻到一半时闪一下
+    // only rebuild the deck if the remote actually brought a change, otherwise it flickers while you're mid-flip
     const dataChanged = fingerprint() !== before;
     if(dataChanged || prefsChanged) buildDeck(true);
-    // 【远端位置只在打开后的第一次同步时套用】否则另一台设备一动，
-    // 你手里这张卡就会在阅读中途被抽走 —— 同步应该是「打开时接上」，
-    // 不是「两块屏幕互相拽」。必须排在 buildDeck 之后：牌组先定，位置才有意义。
+    // [Remote position applies only on the first sync after opening] otherwise the moment another device moves,
+    // the card in your hand is yanked away mid-read — sync should be "pick up where I left off, on open",
+    // not "two screens tugging at each other". Must come after buildDeck: the deck is fixed first, only then does a position mean anything.
     const jumped = firstSync && applyView(m.view);
     firstSync = false;
     if(dataChanged || prefsChanged || jumped) paint();
     renderSecs();
     setSync(T('sync.ok', {k: known.size, n: CARDS.length}));
   }catch(e){
-    // 具体错误必须露出来。上一版只说「同步失败」，结果没人知道是函数没部署、
-    // 密钥不对、还是网断了 —— 三种毛病长得一模一样。
+    // The concrete error must be surfaced. The previous version just said "sync failed", so nobody could tell
+    // function-not-deployed from wrong-key from network-down — three faults that look exactly alike.
     setSync(T('sync.fail', {err: (e && e.message ? e.message : e)}));
   }finally{ syncing = false; }
 }
 
-/* iOS 杀页面时 beforeunload/unload 经常不触发，visibilitychange→hidden 是唯一稳的。
-   sendBeacon 不受页面被回收影响，密钥放在 body 里而不是 query，免得进访问日志。 */
+/* When iOS kills a page, beforeunload/unload often never fire; visibilitychange→hidden is the only reliable one.
+   sendBeacon is unaffected by the page being reclaimed; the key goes in the body rather than the query so it stays out of access logs. */
 function flush(){
   if(!canSync() || !dirty) return;
   clearTimeout(pushT);
@@ -1632,7 +1632,7 @@ function flush(){
 }
 document.addEventListener('visibilitychange', ()=>{
   if(document.visibilityState === 'hidden') flush();
-  else if(canSync()) sync();                 // 切回来先看看别的设备刷了什么
+  else if(canSync()) sync();                 // on coming back, first check what the other devices drilled
 });
 addEventListener('pagehide', flush);
 
@@ -1650,9 +1650,9 @@ el('#restore').onclick = ()=>{
   setTimeout(()=>btn.textContent = T('menu.restore_local'), 2200);
 };
 
-/* 进度码：把 snapshot() 压成一行 base64。
-   导入走的是和同步一模一样的 mergeMap —— 逐条按时间戳取新的那条，
-   所以导入只会让进度前进，绝不会把已经记住的抹掉。 */
+/* Progress code: snapshot() squeezed into one line of base64.
+   Import goes through exactly the same mergeMap as sync — newer entry by timestamp, one by one —
+   so importing only ever moves progress forward and never erases what's already been learned. */
 function encProg(){
   const raw = JSON.stringify({v:1, doc:snapshot()});
   return btoa(unescape(encodeURIComponent(raw)));
@@ -1706,7 +1706,7 @@ el('#syncLink').onclick = ()=>{
   } else prompt(T('sync.link_prompt'), url);
 };
 
-/* 视口 / 安全区的真实数值。env() 只能在 CSS 里读，所以借一个探针元素量出来。 */
+/* Real viewport / safe-area numbers. env() is only readable from CSS, so borrow a probe element to measure it. */
 (function(){
   const probe = document.createElement('div');
   probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;'
@@ -1716,9 +1716,9 @@ el('#syncLink').onclick = ()=>{
   const c = getComputedStyle(probe);
   const n = v => Math.round(parseFloat(v) || 0);
   const st = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
-  // 屏幕高 > 视口高 = iOS 把网页装进了一个比屏幕矮的框（viewport-fit=cover 没生效）。
-  // 这时候底部那条边在页面之外，任何 CSS 都填不了 —— 必须重新「添加到主屏幕」
-  // 才能让 iOS 重新读取 cover 设置。把差值直接写出来，一眼就能判断。
+  // screen height > viewport height = iOS boxed the page into a frame shorter than the screen (viewport-fit=cover didn't take).
+  // That bottom strip is then outside the page and no CSS can fill it — you have to "Add to Home Screen" again
+  // to make iOS re-read the cover setting. Print the difference outright so it can be judged at a glance.
   const lost = Math.max(0, Math.round((screen.height || 0) - innerHeight));
   el('#vp').textContent = T('vp', {vw: innerWidth, vh: innerHeight, sw: screen.width, sh: screen.height,
                                    top: n(c.paddingTop), bottom: n(c.paddingBottom)})
@@ -1727,9 +1727,9 @@ el('#syncLink').onclick = ()=>{
   probe.remove();
 })();
 
-/* 【本地也要恢复位置】以前位置只在同步回来时才套用，于是断网、还没同步完、
-   或者压根没连同步的时候，重开永远回到第 1 张 —— 明明本地存着上次看到哪张。
-   顺序也一样：种子存在本地，buildDeck 直接就能洗出同样的牌序。 */
+/* [Restore position locally too] Position used to be applied only when sync came back, so when offline, before
+   sync finished, or with sync never connected at all, reopening always landed on card 1 — even though the last card seen was stored locally.
+   Same for order: the seed is stored locally, so buildDeck can shuffle out the identical deck order directly. */
 function restoreLocalView(){
   const idx = IDX.get(S.viewCard || '');
   if(idx === undefined) return;
@@ -1741,20 +1741,20 @@ applyI18n();
 buildDeck(false); restoreLocalView(); paint();
 if(canSync()) sync();
 
-/* 装到主屏幕之后如果没有密钥，界面上任何地方都看不出来 —— 进度悄悄只存本机。
-   这种静默降级正是最难发现的那类问题，所以显式说出来。 */
+/* Once installed on the home screen without a key, nothing anywhere in the UI shows it — progress quietly stays on this device only.
+   That kind of silent degradation is exactly the hardest class of problem to notice, so say it explicitly. */
 const STANDALONE = navigator.standalone === true ||
                    matchMedia('(display-mode: standalone)').matches;
 if(STANDALONE && !SK && /^https?:$/.test(location.protocol)){
   el('#nokey').classList.add('on');
-  // 【不要自动消失】这条横幅是唯一能解释「为什么一片空白」的东西。
-  // 12 秒后自己藏起来，等于让用户对着一个空 App 猜。留着，直到他去处理。
+  // [Do NOT auto-dismiss] This banner is the only thing that explains "why is everything blank".
+  // Hiding itself after 12 seconds amounts to leaving the user guessing at an empty app. Keep it until they act on it.
   el('#nokeyGo').onclick = ()=>{ el('#nokey').classList.remove('on'); openSheet(); };
 }
 
-/* ---------- Chrome / Edge 安装应用 ----------
-   sw.js 是网络优先：新部署一刷新就生效，断网才回落到缓存。
-   file:// 打开时直接跳过，单文件版照样能用。 */
+/* ---------- Chrome / Edge "Install app" ----------
+   sw.js is network-first: a new deploy takes effect on the next refresh; it only falls back to the cache when offline.
+   Skipped outright when opened from file://, so the single-file version still works. */
 const SW_OK = location.protocol==='https:' ||
               ['localhost','127.0.0.1'].includes(location.hostname);
 if('serviceWorker' in navigator && SW_OK){

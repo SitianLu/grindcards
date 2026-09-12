@@ -242,6 +242,10 @@ def render_app(deck, built: dict, out: Path):
     }.items():
         assert key in doc, f"template is missing placeholder {key}"
         doc = doc.replace(key, val)
+    if not _icon_data_uri():
+        # No Pillow: drop the icon links rather than point them at an empty href
+        # (browsers would fetch the page itself as the icon).
+        doc = "\n".join(l for l in doc.split("\n") if 'href=""' not in l)
     out.write_text(doc, encoding="utf-8")
     extra = _sidecars(out.parent, stamp.replace(" ", "-").replace(":", ""),
                       deck.name, t(deck.default_lang, "manifest.desc"), deck.default_lang)
