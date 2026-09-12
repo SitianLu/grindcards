@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "grindcards"
+version = "0.1.0"
+description = "Coding-interview flashcards you build with your AI agent — from the problems you got wrong. Every solution is executed on every build."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Sitian Lu" }]
+keywords = ["flashcards", "coding-interview", "leetcode", "spaced-repetition", "claude-code"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Topic :: Education",
+]
+dependencies = ["tomli>=2; python_version < '3.11'"]
+
+[project.optional-dependencies]
+# PDF rendering, figure layout sweep and the app regression suite drive a real
+# browser. Everything else (build + solution execution) is pure Python.
+render = ["playwright>=1.40", "Pillow>=9"]
+
+[project.scripts]
+grindcards = "grindcards.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+grindcards = ["templates/*.html"]

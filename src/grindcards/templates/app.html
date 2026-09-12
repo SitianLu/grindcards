@@ -1,0 +1,1765 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>__APPNAME__</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="__APPNAME__">
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="__ICON__">
+<link rel="icon" href="__ICON__">
+<!-- Chrome / Edge "安装应用" — sidecar files live next to this page.
+     Opened from file:// they 404 harmlessly and the app still works. -->
+<!-- 【manifest 只给非 iOS】现代 iOS 一旦看到 manifest 就用它接管「添加到主屏幕」，
+     于是 apple-mobile-web-app-status-bar-style: black-translucent 被忽略，
+     网页被装进一个比屏幕矮的框里（实测视口 844 / 屏幕 912，安全区 0/0），
+     底部凭空多出一条 68px 的边，任何 CSS 都够不到。
+     iOS 上不给 manifest，它就回到旧的 apple-meta 路径 —— 那条路是能拿到全屏的。
+     图标不受影响：上面的 apple-touch-icon 才是 iOS 真正用的那个。
+     Chrome/Edge 仍然拿得到 manifest，安装应用照常。 -->
+<script>
+(function(){
+  var ua = navigator.userAgent || '';
+  var iOS = /iP(hone|od|ad)/.test(ua) ||
+            (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);   // iPadOS 伪装成 Mac
+  if(iOS) return;
+  var l = document.createElement('link');
+  l.rel = 'manifest'; l.href = 'manifest.webmanifest';
+  document.head.appendChild(l);
+})();
+</script>
+<style>
+:root{
+  --bg:#eef0f3; --card:#ffffff; --ink:#15181c; --ink2:#454b52; --mute:#8b9198;
+  --line:#e2e5e9; --codebg:#f5f6f8; --codebg0:rgba(245,246,248,0); --codeline:#d7dbe0;
+  --keybg:#eef8f2; --keyline:#4b9e6a; --keyink:#1c3f2b;
+  --warnbg:#fdf8ec; --warnline:#e0a53a; --warnink:#5b4a1f;
+  --chip:#f1f3f5; --shadow:0 10px 34px rgba(16,20,28,.13),0 2px 6px rgba(16,20,28,.07);
+  /* 图解用色。SVG 里全部写成 var(--fig-*)，深色模式自动跟随，不用出两套图 */
+  --fig-ink:#3f4650; --fig-mute:#8b9198; --fig-ac:#0369a1; --fig-hi:#dbeafe;
+  --fig-fill:#f7f8fa; --fig-bad:#c0392b; --fig-good:#15803d;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0e1014; --card:#1b1f25; --ink:#eef1f4; --ink2:#b9c0c8; --mute:#79828c;
+    --line:#2c323a; --codebg:#14181d; --codebg0:rgba(20,24,29,0); --codeline:#39414a;
+    --keybg:#152820; --keyline:#3f8a5c; --keyink:#b9e6cb;
+    --warnbg:#2a2110; --warnline:#c08c2c; --warnink:#f0d9a6;
+    --chip:#262c34; --shadow:0 10px 34px rgba(0,0,0,.5);
+    --fig-ink:#c3cad2; --fig-mute:#79828c; --fig-ac:#6ab0e0; --fig-hi:#1d3448;
+    --fig-fill:#20252c; --fig-bad:#e8776a; --fig-good:#5fbe84;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Noto Sans CJK SC",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased; user-select:none; -webkit-user-select:none;
+}
+#app{
+  position:fixed; inset:0; display:flex; flex-direction:column;
+  /* 【底部安全区不在这里吃】以前这里和 footer 的 padding-bottom 叠在一起，
+     底下白白空掉两层。现在底部交给 footer 一处处理，卡片得以往下长。 */
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+}
+
+/* ── top bar ── */
+header{display:flex;align-items:center;gap:10px;padding:10px 16px 6px;flex:none}
+.hbtn{
+  width:34px;height:34px;border-radius:11px;border:none;background:var(--chip);color:var(--ink2);
+  display:grid;place-items:center;font-size:15px;flex:none;cursor:pointer;transition:transform .12s
+}
+.hbtn:active{transform:scale(.9)}
+.hbtn.on{background:var(--ink);color:var(--card)}
+.hmid{flex:1;min-width:0;text-align:center}
+.hsec{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hcnt{font-size:10.5px;color:var(--mute);margin-top:2px;font-variant-numeric:tabular-nums}
+.bar{height:2.5px;background:var(--line);border-radius:2px;margin:4px 16px 0;flex:none;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:2px;transition:width .28s cubic-bezier(.2,.8,.3,1)}
+
+/* ── card ── */
+.stage{flex:1;min-height:0;position:relative;padding:10px 14px 6px;perspective:1400px}
+.card{
+  position:absolute;inset:10px 14px 6px;background:var(--card);border-radius:22px;
+  box-shadow:var(--shadow);overflow:hidden;transform-origin:center center;
+  display:flex;flex-direction:column;
+}
+/* will-change 常驻会把整张卡（含长长的解法面）永久提成合成层，滚动时要反复
+   重新栅格化一大片。只在真正动画/拖拽的那几百毫秒里挂上。 */
+.card.anim{transition:transform .17s ease-in, opacity .17s ease-in;will-change:transform,opacity}
+.card.slide{transition:transform .26s cubic-bezier(.3,.7,.3,1), opacity .26s;will-change:transform,opacity}
+/* 【别叫 .grab】.grab 是下面弹层的小把手（38×4px），卡片一沾上这个类就会被
+   那条规则压成一根 4px 的细条 —— 手指一按卡片就消失，看起来正是「空屏」。 */
+.card.hold{will-change:transform,opacity}
+/* 闲置的那张：display:none，浏览器完全不给它排版，翻不到的卡片不占任何渲染成本 */
+.card.gone{display:none}
+.accent{height:4px;flex:none}
+
+/* front */
+.face{flex:1;min-height:0;display:flex;flex-direction:column;padding:20px 22px 16px;overflow:hidden}
+/* touch-action 是沿祖先链求交集的：这里写 pan-y 的话，里面代码块的 pan-x
+   和它一交集就什么都不剩，横向滚代码在真机上根本不生效。两个方向都放开，
+   横向没有可滚的东西时浏览器自然什么也不做，卡片横滑交给 JS。 */
+.face.scroll{overflow-y:auto;overscroll-behavior:contain;
+  touch-action:pan-x pan-y}
+.fsec{font-size:10px;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
+.ftitle{font-size:24px;font-weight:750;line-height:1.18;margin-top:8px;letter-spacing:-.01em}
+.frule{height:3px;width:44px;border-radius:3px;margin:13px 0 0}
+.hookwrap{flex:1;display:flex;align-items:center;min-height:0}
+.hook{font-size:19px;line-height:1.48;color:var(--ink);font-weight:420}
+.hook .sub{display:block;margin-top:10px;font-size:15px;color:var(--mute);font-style:italic}
+.hook .lead{display:block;font-size:.63em;color:var(--mute);font-weight:550;line-height:1.5;
+            margin-bottom:15px;letter-spacing:.005em}
+.hook .stmt{display:block}
+/* 例子：一行等宽小字。它承担「把题目变具体」的活，所以要跟题面明确分开，
+   但不能抢戏 —— 一条竖线 + 灰字，不加框不加底色。 */
+.hook .ex{display:block;margin-top:12px;padding-left:11px;border-left:2px solid var(--line);
+  font-family:ui-monospace,"SF Mono",Menlo,"DejaVu Sans Mono",monospace;
+  font-size:.68em;line-height:1.55;color:var(--mute);white-space:pre-wrap;word-break:break-word}
+.hook .prompt{display:block;margin-top:14px;font-size:.7em;color:var(--mute);letter-spacing:.04em;font-weight:600}
+/* 题面里的 code 只做等宽区分，不加底色边框 —— 一段话里嵌五六个灰框反而更乱 */
+.hook .stmt code{background:none;border:none;padding:0;font-size:.93em;color:var(--ink)}
+/* 题面从固定位置起排，每张卡的视线落点一致；概念卡的一句话提问仍然居中 */
+.hookwrap.top{align-items:flex-start;padding-top:16px}
+
+/* hints + actions (problem cards) */
+.tools{flex:none;padding-top:10px}
+.hrow{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.hlab{font-size:11px;color:var(--mute);letter-spacing:.08em;font-weight:700}
+.hbtn2{height:30px;min-width:34px;padding:0 11px;border-radius:10px;border:1px dashed var(--line);
+  background:transparent;color:var(--mute);font-size:13px;font-weight:650;font-family:inherit;cursor:pointer}
+.hbtn2:active{transform:scale(.94)}
+.hbtn2.used{border-style:solid;border-color:transparent;background:var(--chip);color:var(--ink2)}
+.hint{margin-top:9px;padding:9px 12px;border-radius:0 9px 9px 0;font-size:13.5px;line-height:1.5;
+  background:var(--chip);border-left:3px solid var(--mute);color:var(--ink2)}
+.hint b{color:var(--ink)}
+.hint u{text-decoration:none;color:var(--mute);font-weight:700;margin-right:6px}
+.arow{display:flex;gap:8px;margin-top:12px}
+.abtn{flex:1;height:38px;border-radius:12px;border:1px solid var(--line);background:transparent;
+  color:var(--ink2);font-size:13.5px;font-weight:650;font-family:inherit;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+.abtn:active{transform:scale(.96)}
+.abtn.on{background:var(--ink);border-color:var(--ink);color:var(--card)}
+.mbadge{font-size:9.5px;font-weight:800;letter-spacing:.09em;color:#b45309;background:#fef3c7;
+  padding:2px 6px;border-radius:5px;margin-left:8px;vertical-align:2px}
+@media (prefers-color-scheme: dark){.mbadge{color:#fbbf24;background:#3a2c0a}}
+.cue{position:absolute;left:0;right:0;bottom:0;height:40px;pointer-events:none;opacity:0;
+     transition:opacity .25s;display:flex;align-items:flex-end;justify-content:center;
+     padding-bottom:5px;font-size:15px;color:var(--mute);
+     background:linear-gradient(to bottom,rgba(0,0,0,0),var(--card) 78%)}
+.card.hasmore .cue{opacity:1}
+.hint2{text-align:center;font-size:11.5px;color:var(--mute);letter-spacing:.05em;flex:none;padding-top:10px}
+
+/* back */
+.pat{text-transform:uppercase;letter-spacing:.07em;font-size:11.5px}
+.btitle{font-size:13px;font-weight:750;color:var(--ink2);display:flex;align-items:center;gap:7px;
+        padding-bottom:9px;border-bottom:1px solid var(--line);margin-bottom:12px;flex:none}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.bnum{margin-left:auto;font-size:11px;color:var(--mute);font-variant-numeric:tabular-nums}
+.body{font-size:14.5px;line-height:1.6;color:var(--ink2)}
+.body>*+*{margin-top:11px}
+.body b{color:var(--ink);font-weight:700}
+.body ul{padding-left:19px}
+.body li{margin:4px 0}
+.body li::marker{color:var(--mute)}
+code{font-family:ui-monospace,"SF Mono",Menlo,"DejaVu Sans Mono",monospace;font-size:.87em;
+     background:var(--codebg);padding:1px 4px;border-radius:5px;border:1px solid var(--line)}
+pre{font-family:ui-monospace,"SF Mono",Menlo,"DejaVu Sans Mono",monospace;
+    font-size:12.4px;line-height:1.52;background:var(--codebg);border-left:3px solid var(--codeline);
+    border-radius:0 8px 8px 0;padding:11px 13px;overflow-x:auto;
+    white-space:pre;color:var(--ink);user-select:text;-webkit-user-select:text;
+    /* 【必须两个方向都写】只写 pan-x 等于禁掉纵向平移：手指落在代码块（以及
+       图解、全屏里的代码）上就再也滑不动卡片了 —— 那是两块死区。
+       两个都允许时，横向由代码块自己滚，纵向没有可滚的东西就自然冒泡给背面。 */
+    touch-action:pan-x pan-y;
+    overscroll-behavior-x:contain}
+pre .cl{display:block;min-height:1.52em;padding-left:var(--i,0);text-indent:-2ch}
+body.wrap pre{overflow-x:hidden}
+/* 换行模式下给悬挂缩进封顶：最深的代码缩进 20 列，照搬会让那一行在手机上
+   只剩十几个字符可用，折成一片。横向滚动模式不封顶，缩进照实显示。 */
+body.wrap pre .cl{white-space:pre-wrap;word-break:break-word;
+  padding-left:min(var(--i,0), 11ch)}
+.key,.warn{border-radius:0 9px 9px 0;padding:10px 13px;font-size:14px;line-height:1.55}
+.key{background:var(--keybg);border-left:3px solid var(--keyline);color:var(--keyink)}
+.warn{background:var(--warnbg);border-left:3px solid var(--warnline);color:var(--warnink)}
+.key b,.warn b{color:inherit}
+.cx{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12px;color:var(--mute);
+    border-top:1px dotted var(--line);padding-top:9px}
+table{border-collapse:collapse;width:100%;font-size:12.6px;line-height:1.45}
+th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+th{background:var(--chip);font-weight:700;color:var(--ink)}
+/*__HL_LIGHT__*/
+@media (prefers-color-scheme: dark){/*__HL_DARK__*/}
+.more{display:flex;align-items:center;gap:10px;margin:18px 0 14px !important;
+      font-size:10px;font-weight:750;letter-spacing:.16em;color:var(--mute)}
+.more::before,.more::after{content:"";flex:1;height:1px;background:var(--line)}
+/* ── 解法面固定四段: ①pattern ②思路(+图解) ③完整实现 ④关键记忆点 ── */
+/* 正文四段走整宽（代码块本来就不够宽），深入那两段缩进，一眼分出主次 */
+.body>.dlab{margin-top:16px}
+.body>.dlab:first-child{margin-top:0}
+.idea{padding-left:0;list-style:none;counter-reset:s}
+.idea li{position:relative;padding-left:26px;margin:7px 0;line-height:1.6}
+.idea li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:1px;
+  width:18px;height:18px;border-radius:50%;background:var(--chip);color:var(--mute);
+  font-size:10.5px;font-weight:800;display:grid;place-items:center}
+/* SVG 图解：viewBox 定死逻辑坐标，宽度交给卡片，多窄的屏都清晰。
+   不用 fitDia 那套缩字号的办法——那是给字符画擦屁股的，矢量图不需要。 */
+.figwrap{margin:9px 0 2px}
+svg.fig{display:block;width:100%;height:auto}
+svg.fig text{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",
+  "Hiragino Sans GB","Noto Sans CJK SC",system-ui,sans-serif}
+svg.fig .m{font-family:ui-monospace,"SF Mono",Menlo,"DejaVu Sans Mono",monospace}
+.diawrap{margin-top:10px;overflow-x:auto}
+.diawrap.over{border-right:1px dashed var(--line)}
+pre.dia{background:transparent;border-left:2px solid var(--line);border-radius:0;
+  color:var(--mute);font-size:11.2px;line-height:1.62;padding:2px 0 2px 12px;
+  white-space:pre;overflow:visible;
+  width:max-content;min-width:100%}   /* 撑到内容宽，让外层 .diawrap 去横向滚 */
+.keys{padding-left:0;list-style:none}
+.keys li{position:relative;padding-left:15px;margin:7px 0;line-height:1.58}
+.keys li::before{content:"";position:absolute;left:2px;top:.62em;width:5px;height:5px;
+  border-radius:50%;background:var(--mute)}
+.dsec{border-left:2px solid var(--line);padding-left:12px}
+.body>.dsec+.dsec{margin-top:15px}
+.dlab{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+      color:var(--mute);margin-bottom:7px}
+.jump{display:inline-flex;align-items:center;gap:6px;font-family:inherit;cursor:pointer;
+      border:1px solid var(--jc);color:var(--jc);background:transparent;border-radius:999px;
+      padding:4px 11px;font-size:12.5px;font-weight:700;transition:transform .12s}
+.jump:active{transform:scale(.95)}
+.jump i{font-style:normal;opacity:.65;font-weight:400}
+.dwhy{margin-top:8px;font-size:13.5px;line-height:1.6;color:var(--ink2)}
+.qa+.qa{margin-top:10px}
+.qaq{font-size:13.5px;font-weight:700;color:var(--ink)}
+.qaq::before{content:"Q ";color:var(--mute)}
+.qaa{font-size:13px;line-height:1.58;color:var(--ink2);margin-top:2px}
+.vr{display:flex;gap:10px;font-size:12.8px;line-height:1.5;padding:5px 0}
+.vr+.vr{border-top:1px dotted var(--line)}
+.vn{flex:0 0 46%;font-weight:700;color:var(--ink)}
+.vd{flex:1;color:var(--ink2)}
+/* 变种题名可点：牌组里有就跳卡（›），没有就开 LeetCode（↗）。
+   不做成按钮样子 —— 一屏四五条，加边框就成了控件墙。 */
+a.vn,button.vn{font-family:inherit;font-size:inherit;text-align:left;background:none;
+  border:none;padding:0;cursor:pointer;text-decoration:none;
+  text-underline-offset:3px;text-decoration-color:var(--line)}
+a.vn:hover,button.vn:hover{text-decoration:underline}
+a.vn:active,button.vn:active{opacity:.55}
+.vn i{font-style:normal;font-weight:400;color:var(--mute);margin-left:4px}
+.prewrap{position:relative}
+.prewrap .fade{position:absolute;top:0;right:0;bottom:0;width:30px;pointer-events:none;opacity:0;
+  transition:opacity .2s;border-radius:0 8px 8px 0;
+  background:linear-gradient(to right,var(--codebg0),var(--codebg) 82%)}
+.prewrap.over .fade{opacity:1}
+.prewrap.over::after{content:"⇄";position:absolute;right:6px;bottom:5px;font-size:10px;
+  color:var(--mute);pointer-events:none}
+
+/* ── footer ── */
+/* home indicator 本身只有几个 px 高、离屏幕底边约 8px。整段 34px 的安全区
+   全留白太浪费，减掉一截仍然不会压到它，卡片却能多出一行的高度。 */
+footer{flex:none;display:flex;gap:10px;
+  padding:5px 16px max(8px, calc(env(safe-area-inset-bottom) - 16px))}
+.act{
+  flex:1;height:50px;border-radius:16px;border:1px solid var(--line);background:var(--card);
+  color:var(--ink2);font-size:15px;font-weight:650;cursor:pointer;transition:transform .12s;
+  font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px
+}
+.act:active{transform:scale(.96)}
+.act.good{background:#0f766e;border-color:#0f766e;color:#fff}
+@media (prefers-color-scheme: dark){.act.good{background:#12857b;border-color:#12857b}}
+
+/* ── sheet ── */
+.scrim{position:fixed;inset:0;background:rgba(8,10,14,.45);opacity:0;pointer-events:none;
+       transition:opacity .22s;z-index:20;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:21;background:var(--card);
+  border-radius:22px 22px 0 0;padding:8px 18px calc(20px + env(safe-area-inset-bottom));
+  transform:translateY(101%);transition:transform .28s cubic-bezier(.25,.9,.3,1);
+  max-height:82%;overflow-y:auto
+}
+.sheet.on{transform:translateY(0)}
+.build{text-align:center;font-size:10.5px;color:var(--mute);margin-top:16px;
+  font-variant-numeric:tabular-nums;letter-spacing:.03em}
+.grab{width:38px;height:4px;border-radius:3px;background:var(--line);margin:6px auto 14px}
+.sh{font-size:11px;font-weight:750;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);margin:16px 0 8px}
+.row{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--line);
+     cursor:pointer;font-size:15.5px}
+.row:last-child{border-bottom:none}
+.sw{width:9px;height:9px;border-radius:50%;flex:none}
+.rc{margin-left:auto;font-size:12.5px;color:var(--mute);font-variant-numeric:tabular-nums}
+.chk{width:21px;height:21px;border-radius:7px;border:1.5px solid var(--line);flex:none;
+     display:grid;place-items:center;font-size:12px;color:transparent}
+.chk.on{background:var(--ink);border-color:var(--ink);color:var(--card)}
+/* ── 代码全屏 ──
+   卡片内的代码块受限于卡片宽度，翻页手势又占着横轴。全屏页里没有翻页，
+   两个方向都能自由滚，字号也能调 —— 长代码真正能读的地方在这里。 */
+.codefs{display:none;position:fixed;inset:0;z-index:30;background:var(--card);
+  flex-direction:column;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.codefs.on{display:flex}
+.cfhd{flex:none;display:flex;align-items:center;gap:8px;padding:10px 12px;
+  border-bottom:1px solid var(--line)}
+.cft{flex:1;min-width:0;font-size:13px;font-weight:700;color:var(--ink2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cfb{flex:none;height:34px;padding:0 12px;border-radius:10px;border:1px solid var(--line);
+  background:transparent;color:var(--ink2);font-family:inherit;font-size:13px;font-weight:650;
+  cursor:pointer}
+.cfb:active{transform:scale(.94)}
+.cfb.on{background:var(--ink);border-color:var(--ink);color:var(--card)}
+.cfx{width:34px;padding:0;font-size:15px}
+.cfbody{flex:1;min-height:0;overflow:auto;
+  padding:12px 14px;touch-action:pan-x pan-y}
+#cfPre{font-family:ui-monospace,"SF Mono",Menlo,"DejaVu Sans Mono",monospace;
+  background:transparent;border:none;border-radius:0;padding:0;
+  font-size:13px;line-height:1.62;color:var(--ink);
+  white-space:pre;width:max-content;min-width:100%;overflow:visible}
+#cfPre .cl{display:block;padding-left:var(--i,0);text-indent:-2ch;min-height:1.62em}
+.codefs.wrap #cfPre{white-space:pre-wrap;width:auto;word-break:break-word}
+.codefs.wrap #cfPre .cl{padding-left:min(var(--i,0), 11ch)}
+.cfhint{flex:none;text-align:center;font-size:11px;color:var(--mute);padding:6px 12px 12px}
+/* 展开按钮：题目卡放在「③ 完整实现」那一行；概念卡没有标题行，挂在代码块角上 */
+.codelab{display:flex;align-items:center;gap:8px}
+.codelab .zoom{margin-left:auto;height:24px;padding:0 9px;border-radius:8px;
+  border:1px solid var(--line);background:transparent;color:var(--mute);
+  font-family:inherit;font-size:10.5px;font-weight:700;letter-spacing:.02em;
+  cursor:pointer;text-transform:none}
+.prewrap .zoom{position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:9px;
+  border:1px solid var(--line);background:var(--card);color:var(--mute);font-size:13px;
+  line-height:1;display:grid;place-items:center;cursor:pointer;font-family:inherit;
+  opacity:.85;z-index:2}
+.zoom:active{transform:scale(.92)}
+
+/* ── 「没连上同步」横幅：独立 App 里静默退化成本地模式最坑，必须说出来 ── */
+.nokey{display:none;position:fixed;left:12px;right:12px;z-index:22;
+  top:calc(env(safe-area-inset-top) + 10px);
+  background:var(--card);border:1px solid var(--warnline);border-radius:14px;
+  box-shadow:var(--shadow);padding:12px 14px;font-size:13px;line-height:1.5}
+.nokey.on{display:block}
+.nokey b{display:block;color:var(--ink);font-size:13.5px;margin-bottom:3px}
+.nokey span{display:block;color:var(--mute)}
+.nokey button{margin-top:9px;height:34px;padding:0 14px;border-radius:10px;
+  border:1px solid var(--line);background:var(--chip);color:var(--ink2);
+  font-family:inherit;font-size:13px;font-weight:650;cursor:pointer}
+
+/* ── 同步密钥输入 ── */
+.krow{display:flex;gap:8px;margin-top:10px}
+.krow input{flex:1;min-width:0;height:42px;border-radius:12px;border:1px solid var(--line);
+  background:transparent;color:var(--ink);font-family:ui-monospace,"SF Mono",Menlo,monospace;
+  font-size:12.5px;padding:0 12px;outline:none}
+.krow input:focus{border-color:var(--mute)}
+.krow button{flex:none;height:42px;padding:0 18px;border-radius:12px;border:1px solid var(--line);
+  background:transparent;color:var(--ink2);font-family:inherit;font-size:14px;font-weight:650;
+  cursor:pointer}
+.krow button:active{transform:scale(.96)}
+#keyShow{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11px}
+
+/* ── 按类型复习面板 ──
+   一行两个热区：点名字展开这一类的全部卡片，点右边的 ✓ 只切筛选。
+   分开是因为这两件事目的不同 —— 一个是「我要看看这类都有啥」，
+   一个是「把这类留在牌组里」。挤在同一个点击区里，两个都不好按。 */
+.sgrp{border-bottom:1px solid var(--line)}
+.sgh{display:flex;align-items:center;gap:10px;padding:11px 0;font-size:14.5px}
+.sgh .nm{flex:1;min-width:0;display:flex;align-items:center;gap:10px;cursor:pointer}
+.sgh .nm>.t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sgh .car{flex:none;color:var(--mute);font-size:11px;width:12px;text-align:center;
+  transition:transform .18s}
+.sgrp.open .sgh .car{transform:rotate(90deg)}
+.sgh .rc{flex:none}
+.sgh .chk{flex:none;cursor:pointer;padding:0 2px}
+.sgb{display:none;padding:2px 0 12px 22px}
+.sgrp.open .sgb{display:block}
+.only{width:100%;height:34px;border-radius:10px;border:1px solid var(--line);
+  background:transparent;color:var(--ink2);font-size:12.5px;font-family:inherit;
+  font-weight:650;cursor:pointer;margin:2px 0 8px}
+.only:active{transform:scale(.985)}
+.citem{display:flex;align-items:center;gap:9px;padding:7px 0;cursor:pointer;font-size:13px}
+.citem+.citem{border-top:1px dotted var(--line)}
+.citem:active{opacity:.5}
+.citem .st{flex:none;width:15px;text-align:center;font-size:11px;color:var(--mute)}
+.citem .st.k{color:var(--keyline)}
+.citem .st.t{color:var(--warnline)}
+.citem .tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:var(--ink)}
+.citem .tag{flex:none;font-size:10.5px;color:var(--mute);border:1px solid var(--line);
+  border-radius:5px;padding:1px 5px;line-height:1.5}
+.citem .tag.todo{color:var(--warnink);background:var(--warnbg);border-color:var(--warnline)}
+
+/* ── 变种题面板 ── */
+.vhint{font-size:12px;line-height:1.55;color:var(--mute);margin:-2px 0 8px}
+.vhint b{color:var(--ink2)}
+.vgrp{border-bottom:1px solid var(--line)}
+.vgh{display:flex;align-items:center;gap:11px;padding:11px 0;cursor:pointer;font-size:14.5px}
+.vgh .rc{margin-left:auto}
+.vgh .car{color:var(--mute);font-size:11px;width:12px;text-align:center;transition:transform .18s}
+.vgrp.open .vgh .car{transform:rotate(90deg)}
+.vgb{display:none;padding:0 0 10px 20px}
+.vgrp.open .vgb{display:block}
+.vitem{display:flex;align-items:flex-start;gap:10px;padding:7px 0}
+.vitem+.vitem{border-top:1px dotted var(--line)}
+.vinfo{flex:1;min-width:0}
+.vitem a{display:block;font-size:13.5px;font-weight:650;color:var(--ink);text-decoration:none}
+.vitem a:active{opacity:.55}
+.vitem a i{font-style:normal;font-weight:400;color:var(--mute);margin-left:5px;font-size:.85em}
+.vfrom{font-size:11.5px;color:var(--mute);line-height:1.5;margin-top:2px}
+.vadd{flex:none;width:30px;height:30px;border-radius:9px;border:1px solid var(--line);
+  background:transparent;color:var(--mute);font-size:15px;font-family:inherit;cursor:pointer;
+  display:grid;place-items:center;line-height:1}
+.vadd.on{background:var(--ink);border-color:var(--ink);color:var(--card)}
+.vadd:active{transform:scale(.92)}
+.wide{width:100%;height:46px;border-radius:14px;border:1px solid var(--line);background:transparent;
+      color:var(--ink2);font-size:15px;font-family:inherit;font-weight:600;margin-top:14px;cursor:pointer}
+.done{position:absolute;inset:10px 14px 6px;border-radius:22px;background:var(--card);box-shadow:var(--shadow);
+      display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:30px;text-align:center}
+.done.on{display:flex;z-index:6}
+.done h2{font-size:26px;font-weight:750}
+.done p{font-size:15px;color:var(--mute);line-height:1.6}
+
+/* ── 桌面 ──────────────────────────────────────────────────────────
+   手机上整块 app 铺满屏幕；桌面上把它收成一根居中的立牌，两侧留出
+   翻页箭头。触屏逻辑一行没动，鼠标拖拽是另加的一套。 */
+.nav{display:none}
+.kbd{display:none}
+@media (min-width:780px){
+  body{background:var(--bg)}
+  /* 桌面上收成一块居中的立牌，而不是拉满整个 27 寸屏 */
+  #app{
+    left:50%; right:auto; top:50%; bottom:auto;
+    width:min(660px,100%); height:min(100%,880px);
+    transform:translate(-50%,-50%)
+  }
+  .stage{padding:14px 16px 8px}
+  .card{inset:14px 16px 8px;border-radius:24px}
+  .done{inset:14px 16px 8px}
+  .nav{
+    display:grid;place-items:center;position:fixed;top:50%;transform:translateY(-50%);
+    width:52px;height:52px;border-radius:50%;border:1px solid var(--line);background:var(--card);
+    color:var(--mute);font-size:26px;line-height:1;cursor:pointer;z-index:5;
+    box-shadow:0 4px 14px rgba(16,20,28,.10);transition:color .15s,transform .12s,opacity .15s;
+    font-family:inherit;padding-bottom:3px
+  }
+  .nav:hover{color:var(--ink);transform:translateY(-50%) scale(1.06)}
+  .nav:active{transform:translateY(-50%) scale(.94)}
+  .nav[disabled]{opacity:.3;cursor:default}
+  .nav.prev{right:calc(50% + 348px)}
+  .nav.next{left:calc(50% + 348px)}
+  .kbd{
+    display:flex;gap:14px;justify-content:center;align-items:center;flex:none;
+    padding:0 16px 10px;font-size:11px;color:var(--mute);letter-spacing:.02em
+  }
+  .kbd kbd{
+    font-family:inherit;font-size:10.5px;background:var(--chip);border:1px solid var(--line);
+    border-bottom-width:2px;border-radius:5px;padding:1px 5px;color:var(--ink2);margin-right:4px
+  }
+}
+@media (min-width:780px) and (max-width:1010px){
+  .nav.prev{right:auto;left:8px} .nav.next{left:auto;right:8px}
+}
+.langrow{display:flex;gap:8px;padding:2px 0 10px}
+.langrow .lang{
+  flex:1;padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:var(--chip);
+  color:var(--ink2);font:inherit;font-size:13.5px;cursor:pointer
+}
+.langrow .lang.on{background:var(--ink);color:var(--card);border-color:var(--ink);font-weight:600}
+/* 鼠标拖拽中：别让浏览器把它当成选中文字 */
+body.dragging,body.dragging *{cursor:grabbing !important;user-select:none !important}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <button class="hbtn" id="shuffle" aria-label="shuffle">⇄</button>
+    <div class="hmid"><div class="hsec" id="hsec">—</div><div class="hcnt" id="hcnt">—</div></div>
+    <button class="hbtn" id="menu" aria-label="menu">☰</button>
+  </header>
+  <div class="bar"><i id="prog" style="width:0%"></i></div>
+  <div class="stage" id="stage">
+    <!-- 两张卡轮流当「当前卡」：下一张先在屏幕外渲染好，再滑进来。
+         只有一张卡的话，换卡必须「先把它推走 → 再重画 → 再推回来」，
+         中间那几百毫秒舞台上什么都没有，看起来就像在 loading。 -->
+    <div class="card" id="card"></div>
+    <div class="card gone" id="card2"></div>
+    <div class="done" id="done">
+      <h2 data-t="done.title"></h2>
+      <p id="donetxt"></p>
+      <button class="wide" style="max-width:260px" id="again" data-t="done.again"></button>
+    </div>
+  </div>
+  <footer>
+    <button class="act" id="no" data-t="again"></button>
+    <button class="act good" id="yes" data-t="got_it"></button>
+  </footer>
+  <div class="kbd" data-th="kbd"></div>
+</div>
+<button class="nav prev" id="navPrev" data-ta="nav.prev">‹</button>
+<button class="nav next" id="navNext" data-ta="nav.next">›</button>
+
+<div class="codefs" id="codefs">
+  <div class="cfhd">
+    <span class="cft" id="cfTitle"></span>
+    <button class="cfb" id="cfWrap" data-t="code.wrap"></button>
+    <button class="cfb" id="cfMinus" data-ta="code.smaller">A−</button>
+    <button class="cfb" id="cfPlus" data-ta="code.larger">A+</button>
+    <button class="cfb cfx" id="cfClose" data-ta="code.close">✕</button>
+  </div>
+  <div class="cfbody" id="cfBody"><pre id="cfPre"></pre></div>
+  <div class="cfhint" data-t="code.hint"></div>
+</div>
+<div class="nokey" id="nokey">
+  <b data-t="nokey.title"></b>
+  <span data-t="nokey.text"></span>
+  <button id="nokeyGo" data-t="nokey.go"></button>
+</div>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet">
+  <div class="grab"></div>
+  <div class="sh" id="langSh"><span data-t="menu.language"></span></div>
+  <div class="langrow" id="langRow"></div>
+  <div class="sh" data-t="menu.types"></div>
+  <div class="row" id="kindP"><span data-t="menu.kind_p"></span><span class="chk" style="margin-left:auto">✓</span></div>
+  <div class="row" id="kindC"><span data-t="menu.kind_c"></span><span class="chk" style="margin-left:auto">✓</span></div>
+  <div class="sh"><span data-t="menu.by_topic"></span> <span id="secN"></span></div>
+  <div class="vhint" data-th="menu.by_topic_hint"></div>
+  <div id="secs"></div>
+  <div class="sh"><span data-t="menu.todo"></span> <span id="todoN"></span></div>
+  <div class="row" id="onlyTodo"><span data-t="menu.only_todo"></span><span class="chk" style="margin-left:auto">✓</span></div>
+  <div id="todoList"></div>
+  <button class="wide" id="copyTodo" data-t="menu.copy_todo"></button>
+  <div class="sh"><span data-t="menu.variants"></span> <span id="varN"></span></div>
+  <div class="vhint" data-th="menu.variants_hint"></div>
+  <div id="varList"></div>
+  <div class="sh" data-t="menu.sync"></div>
+  <div class="row" id="syncRow"><span id="syncTxt">—</span><span class="rc" id="keyShow"></span></div>
+  <div class="krow">
+    <input id="keyIn" data-tp="menu.key_placeholder" autocapitalize="off"
+           autocorrect="off" spellcheck="false" autocomplete="off">
+    <button id="keySet" data-t="menu.connect"></button>
+  </div>
+  <button class="wide" id="syncLink" data-t="menu.copy_link"></button>
+  <div class="row" id="copyKey"><span data-t="menu.copy_key"></span><span class="rc" data-t="menu.key_len"></span></div>
+  <button class="wide" id="restore" data-t="menu.restore_local"></button>
+  <!-- 进度存在 localStorage 里，是按域名隔离的：换个域名（换托管、改自定义域名）
+       就读不到旧的了。有了导出/导入，进度能跟着人走，不依赖任何服务器。 -->
+  <button class="wide" id="expProg" data-t="menu.export"></button>
+  <div class="krow">
+    <input id="impIn" data-tp="menu.import_placeholder" autocapitalize="off"
+           autocorrect="off" spellcheck="false" autocomplete="off">
+    <button id="impSet" data-t="menu.import"></button>
+  </div>
+  <div class="sh" data-t="menu.options"></div>
+  <div class="row" id="onlyUnknown"><span data-t="menu.only_unknown"></span><span class="chk" style="margin-left:auto">✓</span></div>
+  <div class="row" id="shuffleRow"><span data-t="menu.shuffle"></span><span class="chk" style="margin-left:auto">✓</span></div>
+  <div class="row" id="wrapRow"><span data-t="menu.wrap"></span><span class="chk" style="margin-left:auto">✓</span></div>
+  <button class="wide" id="reset" data-t="menu.reset"></button>
+  <!-- 一行诊断：视口和安全区的真实数值。iOS 主屏幕 App 里这几个数和浏览器里
+       不一样，而且看不见摸不着，出问题只能靠猜。写出来，一张截图就能定位。 -->
+  <div class="build"><span id="build"></span><span id="vp"></span></div>
+</div>
+
+<script>
+/* Every language is baked in; switching swaps CARDS/VARIANTS in place.
+   Card titles and order are identical across languages (the build asserts it),
+   so progress keyed by title survives a switch untouched. */
+const DECKS = __DECKS__;
+const VARS = __VARIANTS__;          // variants are deliberately not in CARDS: menu-only
+const SECTIONS = __SECTIONS__;
+const I18N = __I18N__;
+const LANGS = __LANGS__;            // [[code, display name], ...]
+const DEFAULT_LANG = __LANG__;
+const BUILD = __BUILD__;            // {lang: stamp}
+const HTML_LANG = {zh: 'zh-CN'};
+const LKEY = 'gc_lang';
+function pickLang(){
+  let l = '';
+  try{ l = localStorage.getItem(LKEY) || ''; }catch(e){}
+  return DECKS[l] ? l : DEFAULT_LANG;
+}
+let LANG = pickLang();
+let CARDS = DECKS[LANG], VARIANTS = VARS[LANG];
+let VMAP = new Map(VARIANTS.map(v=>[v.lc, v]));
+/* T('menu.todo') / T('done.text', {k, n}) — every UI string goes through here. */
+function T(k, kw){
+  let s = (I18N[LANG] && I18N[LANG][k]) || (I18N.en && I18N.en[k]) || k;
+  if(kw) for(const [a, b] of Object.entries(kw)) s = s.split('{' + a + '}').join(b);
+  return s;
+}
+/* Static chrome carries data-t (text) / data-th (html) / data-ta (aria-label) /
+   data-tp (placeholder); re-run after a switch and the whole shell re-labels. */
+function applyI18n(){
+  document.documentElement.lang = HTML_LANG[LANG] || LANG;
+  document.querySelectorAll('[data-t]').forEach(n => n.textContent = T(n.dataset.t));
+  document.querySelectorAll('[data-th]').forEach(n => n.innerHTML = T(n.dataset.th));
+  document.querySelectorAll('[data-ta]').forEach(n => n.setAttribute('aria-label', T(n.dataset.ta)));
+  document.querySelectorAll('[data-tp]').forEach(n => n.placeholder = T(n.dataset.tp));
+  const b = document.getElementById('build'); if(b) b.textContent = BUILD[LANG] || BUILD[DEFAULT_LANG] || '';
+  const host = document.getElementById('langRow');
+  if(host){
+    host.innerHTML = '';
+    LANGS.forEach(([code, name]) => {
+      const btn = document.createElement('button');
+      btn.className = 'lang' + (code === LANG ? ' on' : '');
+      btn.textContent = name;
+      btn.onclick = () => setLang(code);
+      host.appendChild(btn);
+    });
+    document.getElementById('langSh').hidden = LANGS.length < 2;
+    host.hidden = LANGS.length < 2;
+  }
+}
+
+/* ---------- storage (never throws) ---------- */
+const KEY='gc_v1'; let mem={};
+const store={
+  get(){
+    try{
+      const v = localStorage.getItem(KEY);
+      if(v) return JSON.parse(v)||{};
+      const old = localStorage.getItem('cf_v1');        // pre-GrindCards builds
+      return old ? JSON.parse(old)||{} : {};
+    }catch(e){ return mem; }
+  },
+  set(v){ try{ localStorage.setItem(KEY,JSON.stringify(v)); }catch(e){ mem=v; } }
+};
+/* 进度按【卡片标题】存，不按下标。cards.py 是按 section 排序生成的,
+   每天新增一张卡都会把它后面所有卡的下标顶掉——用下标存等于隔天洗一次进度。
+   每条各自带时间戳，跨设备合并时逐条取新的那条。
+   筛选类偏好（section / 概念题目 / 只看没记住 / 只看待练 / 乱序）也跟着同步：
+   它们决定「现在在练哪一批」，手机上调完，电脑打开就该是同一批。
+   【wrap（代码自动换行）故意不同步】它是屏幕宽度的函数不是意图的函数：
+   手机窄要开、桌面宽要关，同步它等于每次在一台设备上调整都会弄坏另一台。 */
+let S = Object.assign({cards:{},todoM:{},secs:[],kinds:[],onlyTodo:false,
+                       onlyUnknown:false,shuffled:false,wrap:true,prefsAt:0,
+                       seed:0,viewCard:'',viewAt:0}, store.get());
+
+/* 偏好是整块替换（不像卡片那样逐条合并）—— 它们互相关联，
+   拆开取新的会拼出一个谁都没设过的组合。整块带一个时间戳，新的赢。 */
+// seed 和 shuffled 必须一起走：只同步「开了乱序」而不同步种子的话，
+// 两台设备各洗各的，顺序照样对不上。
+const PREF_KEYS = ['secs','kinds','onlyTodo','onlyUnknown','shuffled','seed'];
+function prefsOut(){
+  const o = {t: S.prefsAt || 0};
+  PREF_KEYS.forEach(k => o[k] = S[k]);
+  return o;
+}
+function applyPrefs(p){
+  if(!p || typeof p !== 'object') return false;
+  if((Number(p.t) || 0) <= (S.prefsAt || 0)) return false;   // 本地更新，不动
+  PREF_KEYS.forEach(k => { if(p[k] !== undefined) S[k] = p[k]; });
+  S.prefsAt = Number(p.t) || 0;
+  return true;
+}
+
+const now = ()=>Date.now();
+let IDX = new Map(CARDS.map((c,i)=>[c.t,i]));
+
+function setLang(code){
+  if(!DECKS[code] || code === LANG) return;
+  LANG = code;
+  try{ localStorage.setItem(LKEY, code); }catch(e){}
+  CARDS = DECKS[LANG]; VARIANTS = VARS[LANG];
+  VMAP = new Map(VARIANTS.map(v=>[v.lc, v]));
+  IDX = new Map(CARDS.map((c,i)=>[c.t,i]));
+  applyI18n();
+  buildDeck(true); paint(); renderSecs();
+}
+
+if(Array.isArray(S.known)){          // 旧格式（下标数组）迁移一次
+  const t=now();
+  S.known.forEach(i=>{ const c=CARDS[i]; if(c) S.cards[c.t]={k:1,t}; });
+  delete S.known;
+}
+if(Array.isArray(S.todo)){
+  const t=now();
+  S.todo.forEach(lc=>{ S.todoM[String(lc)]={v:1,t}; });
+  delete S.todo;
+}
+
+const known = new Set();             // 运行时仍然用下标，渲染那套一行没动
+const todo  = new Set();
+function hydrate(){
+  known.clear(); todo.clear();
+  for(const [title,e] of Object.entries(S.cards||{}))
+    if(e && e.k && IDX.has(title)) known.add(IDX.get(title));
+  for(const [lc,e] of Object.entries(S.todoM||{})) if(e && e.v) todo.add(+lc);
+}
+hydrate();
+document.body.classList.toggle('wrap', S.wrap!==false);
+
+/* 取消「记住了」也要留一条 k:0 的墓碑，否则合并时旧的 k:1 会把它顶回来 */
+function setKnown(i, on){
+  const t = CARDS[i] && CARDS[i].t; if(!t) return;
+  S.cards[t] = {k: on?1:0, t: now()};
+  on ? known.add(i) : known.delete(i);
+}
+function setTodo(lc, on){
+  S.todoM[String(lc)] = {v: on?1:0, t: now()};
+  on ? todo.add(lc) : todo.delete(lc);
+}
+function clearKnown(){
+  const t=now();
+  known.forEach(i=>{ const k=CARDS[i] && CARDS[i].t; if(k) S.cards[k]={k:0,t}; });
+  known.clear();
+}
+
+let dirty = false;
+const save = ()=>{ store.set(S); dirty = true; backup(); schedulePush(); };
+/* 改的是偏好就走这个 —— 不打时间戳的话，另一台设备永远认为自己的更新 */
+const savePrefs = ()=>{ S.prefsAt = now(); save(); };
+
+/* ---------- deck ---------- */
+let deck=[], pos=0, flipped=false, busy=false;
+
+function buildDeck(keepCurrent){
+  const cur = deck[pos];
+  let ids = CARDS.map((c,i)=>i);
+  if(S.kinds.length) ids = ids.filter(i=>S.kinds.includes(CARDS[i].k));
+  if(S.secs.length) ids = ids.filter(i=>S.secs.includes(CARDS[i].s));
+  if(S.onlyUnknown) ids = ids.filter(i=>!known.has(i));
+  if(S.onlyTodo)    ids = ids.filter(i=>todo.has(CARDS[i].lc));
+  if(!ids.length){ ids = CARDS.map((c,i)=>i).filter(i=>!S.secs.length||S.secs.includes(CARDS[i].s)); }
+  // 【用种子洗，不用 Math.random】同一个种子 + 同一批卡 = 同一个顺序，
+  // 于是「顺序」这件事只需要同步一个整数，不用同步整个下标数组 ——
+  // 下标数组隔天就废了：定时任务插一张新卡，后面所有下标全错位。
+  if(S.shuffled){
+    const r = rng(S.seed || 1);
+    for(let i=ids.length-1;i>0;i--){ const j=Math.floor(r()*(i+1)); [ids[i],ids[j]]=[ids[j],ids[i]]; }
+  }
+  deck = ids;
+  pos = keepCurrent && deck.includes(cur) ? deck.indexOf(cur) : 0;
+  if(pos<0) pos=0;
+}
+
+/* mulberry32：32 位种子的确定性伪随机数，十行、无依赖、跨浏览器结果一致。 */
+function rng(seed){
+  let a = seed >>> 0;
+  return function(){
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const newSeed = ()=> (Date.now() ^ Math.floor(Math.random()*0x7fffffff)) >>> 0;
+
+/* 【位置存标题，不存下标】和进度同一个理由：牌组每天都在长，
+   下标会整体后移，存下标等于隔天跳到另一张卡上。
+   只在用户真的换卡时打时间戳 —— 页面刚打开时的那次渲染不算「我移动了」，
+   否则每台设备一开机就用「我在第 1 张」去覆盖远端的真实位置。 */
+function noteView(){
+  const c = CARDS[deck[pos]]; if(!c || S.viewCard === c.t) return;
+  S.viewCard = c.t; S.viewAt = now();
+  store.set(S); schedulePush();
+}
+function viewOut(){ return {card: S.viewCard || '', t: S.viewAt || 0}; }
+function applyView(v){
+  if(!v || !v.card) return false;
+  if((Number(v.t) || 0) <= (S.viewAt || 0)) return false;
+  S.viewCard = v.card; S.viewAt = Number(v.t) || 0;
+  const idx = IDX.get(v.card);
+  if(idx === undefined) return false;              // 这张卡这个版本里没有
+  const i = deck.indexOf(idx);
+  if(i < 0) return false;                          // 被当前筛选挡掉了
+  pos = i; flipped = false; shown = 0;
+  return true;
+}
+
+/* ---------- render ---------- */
+const el = s=>document.querySelector(s);
+const MOUSE = matchMedia('(pointer:fine)').matches;   // 桌面：文案讲“点击/拖拽”而不是“轻点/滑动”
+const stage=el('#stage'), doneBox=el('#done');
+/* 两层卡片。card 永远指向「正在看的那张」，other() 是备用层：
+   换卡/翻面时先把新内容画进备用层（此时它在屏幕外，用户看不见），
+   画完再让两层同时动 —— 舞台上任何一刻都有内容，不会再出现空屏。 */
+const cardA=el('#card'), cardB=el('#card2');
+let card = cardA;
+const other = ()=> card===cardA ? cardB : cardA;
+let peerDir = 0;          // 边上贴着的那张是哪个方向的（0 = 没有）
+
+function faceHTML(c, back){
+  const prob = c.k === 'P';
+  const fc = prob ? 'var(--mute)' : c.c;          // front must not leak the pattern
+  if(!back) return `<div class="accent" style="background:${fc}"></div>
+    <div class="face">
+      <div class="fsec" style="color:${fc}">${prob ? T('problem') : c.s}</div>
+      <div class="ftitle">${c.t}${c.tag ? `<span class="mbadge">${c.tag}</span>` : ''}</div>
+      <div class="frule" style="background:${fc}"></div>
+      <div class="hookwrap${prob ? ' top' : ''}"><div class="hook">${c.h}</div></div>
+      ${prob ? toolsHTML(c) : ''}
+      <div class="hint2">${T((prob ? 'flip.p_' : 'flip.c_') + (MOUSE ? 'mouse' : 'touch'))}</div>
+    </div>`;
+  return `<div class="accent" style="background:${c.c}"></div>
+    <div class="face scroll">
+      <div class="btitle"><span class="dot" style="background:${c.c}"></span><span class="pat" style="color:${c.c}">${prob ? c.s : c.t}</span>
+        <span class="bnum">${String(c.n).padStart(2,'0')}</span></div>
+      <div class="body">${c.b}</div>
+    </div><div class="cue">⌄</div>`;
+}
+
+/* 图解要一眼看全，横向滚就失去意义了 —— 缩到整张图能塞进卡片宽度为止 */
+function fitDia(root){
+  root.querySelectorAll('.diawrap').forEach(w=>{
+    const d = w.querySelector('.dia'); if(!d) return;
+    let fs = 11.2, g = 0;
+    d.style.fontSize = fs + 'px';
+    while(w.scrollWidth > w.clientWidth + 1 && fs > 8.2 && g++ < 40){
+      fs -= 0.25; d.style.fontSize = fs + 'px';
+    }
+    w.classList.toggle('over', w.scrollWidth > w.clientWidth + 1);
+  });
+}
+
+/* 等宽字体一个字符的宽度 = 字号 × 固定比例，量一次就够，之后所有卡片直接算。 */
+let MONO = 0;
+function monoRatio(){
+  if(MONO) return MONO;
+  const t=document.createElement('span');
+  t.style.cssText='position:absolute;visibility:hidden;white-space:pre;font-size:100px;'+
+    'font-family:ui-monospace,"SF Mono",Menlo,"DejaVu Sans Mono",monospace';
+  t.textContent='0'.repeat(50);
+  document.body.appendChild(t);
+  MONO = t.getBoundingClientRect().width / 50 / 100;
+  t.remove();
+  return MONO;
+}
+
+function fitCode(root){
+  const wrapMode=document.body.classList.contains('wrap');
+  const ratio=monoRatio();
+  root.querySelectorAll('.body pre:not(.dia)').forEach(p=>{   // .dia 由 fitDia 管，别被套两层
+    if(!p.parentElement.classList.contains('prewrap')){
+      const w=document.createElement('div'); w.className='prewrap';
+      p.parentNode.insertBefore(w,p); w.appendChild(p);
+      const f=document.createElement('span'); f.className='fade'; w.appendChild(f);
+      if(!(w.previousElementSibling && w.previousElementSibling.classList.contains('codelab'))){
+        const z=document.createElement('button'); z.className='zoom ctl'; z.type='button';
+        z.textContent='⤢'; z.setAttribute('aria-label',T('code.expand_aria')); w.appendChild(z);
+      }
+    }
+    // 以前是「缩 0.3px、量一次、再缩」最多循环 40 次，每次都强制同步布局；
+    // 一张解法面光这里就要 35ms，正好卡在你翻开卡片准备滑动的那一刻。
+    // 现在最宽多少列由构建期写进 data-w，字号一次算出来。
+    const cols = +(wrapMode ? p.dataset.ww : p.dataset.w) || 44;
+    const cs = getComputedStyle(p);
+    const avail = p.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const min = wrapMode ? 9.6 : 9.8;
+    let fs = Math.max(min, Math.min(12.4, avail / (cols * ratio)));
+    p.style.fontSize = fs.toFixed(2) + 'px';
+    // 算完再实测一次做校正。字体回退（中文走另一套字形）会让估算有偏差，
+    // 一次 scrollWidth 就能纠正 —— 比原来量四十次便宜得多。
+    if(!wrapMode && p.scrollWidth > p.clientWidth + 1){
+      fs = Math.max(min, fs * p.clientWidth / p.scrollWidth);
+      p.style.fontSize = fs.toFixed(2) + 'px';
+    }
+    p.parentElement.classList.toggle('over', !wrapMode && p.scrollWidth > p.clientWidth + 1);
+  });
+}
+
+let shown = 0;                       // hints revealed on the current card
+
+function toolsHTML(c){
+  const hs = c.hints || [];
+  const chips = hs.map((_, i) =>
+    `<button class="hbtn2 ctl ${i < shown ? 'used' : ''}" data-h="${i}">${i+1}</button>`).join('');
+  const body = hs.slice(0, shown).map((h, i) =>
+    `<div class="hint"><u>${T('hint.show', {n: i+1})}</u>${h}</div>`).join('');
+  const inList = todo.has(c.lc);
+  return `<div class="tools">
+    <div class="hrow"><span class="hlab">${T('hint.label')}</span>${chips}</div>
+    ${body}
+    <div class="arow">
+      <a class="abtn ctl" target="_blank" rel="noopener"
+         href="https://leetcode.com/problems/${c.slug}/">${T('hint.leetcode')}</a>
+      <button class="abtn ctl todo ${inList ? 'on' : ''}">${T(inList ? 'hint.in_todo' : 'hint.add_todo')}</button>
+    </div></div>`;
+}
+
+function bindTools(c, root){
+  root.querySelectorAll('.hbtn2').forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    shown = Math.max(shown, +b.dataset.h + 1);
+    paint();
+  });
+  const tb = root.querySelector('.todo');
+  if(tb) tb.onclick = e => {
+    e.stopPropagation();
+    setTodo(c.lc, !todo.has(c.lc));
+    save(); paint(); renderSecs();
+  };
+}
+
+/* ---------- 代码全屏 ---------- */
+const codefs = el('#codefs');
+let cfSize = 13;
+function openCode(pre){
+  el('#cfPre').innerHTML = pre.innerHTML;      // 高亮标记原样搬过去
+  const c = CARDS[deck[pos]];
+  el('#cfTitle').textContent = c ? c.t : '';
+  codefs.classList.toggle('wrap', document.body.classList.contains('wrap'));
+  el('#cfWrap').classList.toggle('on', codefs.classList.contains('wrap'));
+  el('#cfPre').style.fontSize = cfSize + 'px';
+  el('#cfBody').scrollTop = 0; el('#cfBody').scrollLeft = 0;
+  codefs.classList.add('on');
+}
+function closeCode(){ codefs.classList.remove('on'); }
+el('#cfClose').onclick = closeCode;
+el('#cfWrap').onclick = ()=>{
+  codefs.classList.toggle('wrap');
+  el('#cfWrap').classList.toggle('on', codefs.classList.contains('wrap'));
+};
+const setSize = d => {
+  cfSize = Math.min(22, Math.max(9, cfSize + d));
+  el('#cfPre').style.fontSize = cfSize + 'px';
+};
+el('#cfPlus').onclick  = ()=>setSize(1);
+el('#cfMinus').onclick = ()=>setSize(-1);
+
+/* 深入 → pattern chip 跳到对应概念卡。若该概念卡被 section/kind 过滤掉了，
+   就把它临时插到当前卡后面，而不是推翻用户的筛选。 */
+function bindDeep(root){
+  root.querySelectorAll('.zoom').forEach(z => z.onclick = e => {
+    e.stopPropagation();
+    const host = z.classList.contains('ctl') && z.parentElement.classList.contains('codelab')
+      ? z.parentElement.nextElementSibling      // 标题行 -> 下面那个代码块
+      : z.parentElement;                        // 角上的按钮 -> 自己所在的 prewrap
+    const pre = host && host.querySelector ? host.querySelector('pre') : null;
+    if(pre) openCode(pre);
+  });
+  root.querySelectorAll('.jump, .vgo[data-i]').forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    goToCard(+b.dataset.i);
+  });
+  // 变种题那一行是 <a>，让它自己走默认行为开 LeetCode，只是别把点击冒泡成翻面
+  root.querySelectorAll('a.vgo').forEach(a => a.onclick = e => e.stopPropagation());
+}
+
+/* 跳到某张卡。若它被 section/kind 筛掉了，就临时插到当前卡后面，
+   而不是推翻用户的筛选。 */
+function goToCard(idx){
+  let i = deck.indexOf(idx);
+  if(i < 0){ deck.splice(pos+1, 0, idx); i = pos+1; }
+  pos = i; flipped = false; shown = 0;
+  doneBox.classList.remove('on');
+  paint(); noteView();
+}
+
+/* 概念卡的 hook 是一句话提问，大字本身就是重点。
+   题目卡是一段题面，用同样的大字会把整张卡糊满，读起来反而累 —— 起手就小一号。 */
+function fitHook(root, idx){
+  const w=root.querySelector('.hookwrap'), h=root.querySelector('.hook');
+  if(!w||!h) return;
+  const prob = (CARDS[idx]||{}).k === 'P';
+  let fs = prob ? 18 : 24, min = prob ? 13.5 : 15, g = 0;
+  h.style.fontSize=fs+'px';
+  while(h.scrollHeight>w.clientHeight && fs>min && g++<60){ fs-=0.5; h.style.fontSize=fs+'px'; }
+}
+
+function cue(root){
+  const f=root.querySelector('.face.scroll'); if(!f) return;
+  // scrollHeight 在滚动期间不会变，却是一次强制同步布局 —— 每帧读它就是每帧
+  // 卡一下主线程。这里只在这张卡渲染完时算一次。
+  const canScroll = f.scrollHeight > f.clientHeight + 4;
+  let shown = null;
+  const upd = ()=>{
+    const want = canScroll && f.scrollTop < 16;
+    if(want === shown) return;          // 状态没变就别碰 class，省掉整张卡的样式重算
+    shown = want;
+    root.classList.toggle('hasmore', want);
+  };
+  upd(); f.addEventListener('scroll', upd, {passive:true});
+}
+
+/* 把某张卡渲染进某一层。注意它不碰 pos / flipped —— 备用层画的往往
+   不是「当前卡」，全局状态要等动画真正切过去时才改。 */
+function renderFace(root, idx, back){
+  const c = CARDS[idx]; if(!c) return;
+  root.innerHTML = faceHTML(c, back);
+  if(back){ fitCode(root); fitDia(root); cue(root); bindDeep(root); }
+  else { if(c.k === 'P') bindTools(c, root); fitHook(root, idx); root.classList.remove('hasmore'); }
+}
+
+function paint(){
+  if(!deck.length){ return; }
+  renderFace(card, deck[pos], flipped);
+  paintChrome();
+}
+
+/* 顶栏、进度条、按钮 —— 跟着「当前卡」走，和卡面渲染分开，
+   这样动画切换的瞬间可以只更新它们。 */
+function paintChrome(){
+  if(!deck.length) return;
+  const c = CARDS[deck[pos]];
+  const isP = c.k === 'P';
+  el('#hsec').textContent = isP && !flipped ? T('problem') : c.s;
+  el('#hsec').style.color = isP && !flipped ? 'var(--mute)' : c.c;
+  el('#hcnt').textContent = `${pos+1} / ${deck.length}　·　${T('known_count', {k: known.size, n: CARDS.length})}`;
+  const p = el('#prog');
+  p.style.width = ((pos+1)/deck.length*100)+'%';
+  p.style.background = (isP && !flipped) ? 'var(--mute)' : c.c;
+  el('#navPrev').disabled = pos <= 0;
+  el('#navNext').disabled = pos >= deck.length - 1;
+}
+
+/* 动画收尾：把两层都恢复成确定状态，闲置层退回 display:none。
+   任何一条路径结束都必须经过它，否则卡片会停在半空中。 */
+function settle(){
+  bump();
+  [cardA, cardB].forEach(c=>{
+    c.style.transition=''; c.style.transform=''; c.style.opacity=''; c.style.zIndex='';
+    c.classList.remove('anim','slide','hold');
+  });
+  const idle = other();
+  idle.classList.add('gone'); idle.innerHTML='';   // 闲置层清空，绝不可能残留上一张卡
+  card.classList.remove('gone');
+  peerDir = 0; busy = false;
+}
+
+/* 收尾的「代」号：任何新动作（翻面、换卡、又开始拖）都会 bump 一次，
+   让上一轮排队中的 settle 作废。否则「拖一下松手、立刻再拖」时，
+   上一次排的 settle 会在新一次拖拽中途把备用层清掉。 */
+let gen = 0, watchdog = 0;
+function bump(){ clearTimeout(watchdog); return ++gen; }
+/* ms 后收尾；同时留一个 1.2s 的兜底闹钟，任何一条路径没走到 settle
+   都不会让卡片永远停在屏幕外。 */
+function settleIn(ms){
+  const g = bump();
+  const fire = ()=>{ if(g===gen) settle(); };
+  setTimeout(fire, ms);
+  watchdog = setTimeout(fire, 1200);
+}
+
+/* 【为什么是两层，而不是一张卡自己动】
+   一张卡的话，换卡只能「推走 → 重画 → 推回来」，重画必须等推走的动画结束
+   才能做（否则用户会看见内容在眼前突变），于是中间必然有半秒舞台是空的 ——
+   这就是「每次滑动后都有半秒 loading」。
+   两层：新卡先画在屏幕外的备用层里，画完两层同时滑，用户全程都看得见东西。
+
+   【不要用 requestAnimationFrame 摆「起始位置」】
+   iOS 在手势前后、页面被遮挡或内存紧张时会推迟甚至丢掉 rAF，一旦丢了，
+   卡片就永远停在看不见的位置。改用强制回流：同一个任务里读一次 offsetWidth
+   让上一行立刻落地，下一行直接写终态，完全不依赖回调被调度。 */
+function flip(){
+  if(busy) return;
+  busy = true;
+  const out = card, inc = other(), nf = !flipped;
+  // 先画：此时 inc 已经立起来侧对着用户，看不见，画多久都不影响观感
+  inc.classList.remove('gone');
+  inc.style.transition='none';
+  inc.style.transform='rotateY(-90deg) scale(.96)';
+  inc.style.opacity='.6';        // 别压太暗：翻面途中卡片本来就是侧对着看不见，
+                                 // 再叠一层半透明就会读成「黑了一下」而不是「翻过去了」
+  inc.style.zIndex='2'; out.style.zIndex='1';
+  renderFace(inc, deck[pos], nf);
+  void inc.offsetWidth;                       // 起始姿态立刻落地
+  out.classList.add('anim');
+  out.style.transform='rotateY(90deg) scale(.96)'; out.style.opacity='.6';
+  setTimeout(()=>{
+    card = inc; flipped = nf;
+    out.style.opacity='0';
+    inc.classList.add('anim');
+    inc.style.transition='';
+    // 转出去用 ease-in（起步慢、甩出去快），转回来必须用 ease-out：
+    // 两半都用 ease-in 的话，新卡是「从侧面慢慢立起来」，正好在几乎看不见的
+    // 那几度上磨蹭最久，翻面就会读成又黑了一下。
+    inc.style.transitionTimingFunction='ease-out';
+    inc.style.transform='rotateY(0deg) scale(1)'; inc.style.opacity='1';
+    paintChrome();
+    settleIn(200);
+  },160);
+}
+
+function go(dir){
+  if(busy) return;
+  const next = pos + dir;
+  if(next<0 || next>=deck.length){
+    card.style.transition='transform .16s'; card.style.transform=`translateX(${dir*-14}px)`;
+    setTimeout(()=>{card.style.transform='';setTimeout(()=>card.style.transition='',160);},160);
+    if(next>=deck.length) finish();
+    return;
+  }
+  busy = true;
+  const out = card, inc = other();
+  // 拖拽过程中多半已经把下一张画好贴在边上了（peerDir），那就直接接着它动，
+  // 手指松开到卡片滑到位是连续的，一帧都不用等。
+  if(peerDir !== dir){
+    inc.classList.remove('gone');
+    inc.style.transition='none'; inc.style.opacity='1';
+    inc.style.transform=`translateX(${dir*112}%)`;
+    renderFace(inc, deck[next], false);
+  }
+  inc.style.zIndex='2'; out.style.zIndex='1';
+  void inc.offsetWidth;
+  card = inc; pos = next; flipped = false; shown = 0; peerDir = 0;
+  paintChrome(); noteView();
+  out.classList.add('slide'); inc.classList.add('slide');
+  inc.style.transition=''; inc.style.transform='translateX(0) rotate(0)'; inc.style.opacity='1';
+  out.style.transform=`translateX(${dir*-112}%) rotate(${dir*-4}deg)`; out.style.opacity='.2';
+  settleIn(280);
+}
+
+function finish(){
+  doneBox.classList.add('on');
+  el('#donetxt').textContent = T('done.text', {k: known.size, n: CARDS.length}) + (S.onlyUnknown ? T('done.text_unknown') : '');
+}
+
+function mark(ok){
+  shown = 0;
+  setKnown(deck[pos], ok); save();
+  if(pos>=deck.length-1){ paint(); finish(); } else go(1);
+}
+
+/* ---------- 手势：左右翻卡 ----------
+   代码块【不参与】卡片手势：在 <pre> 上横滑是滚代码，不是换卡。这样宽代码
+   在卡片内也能挪动；真要看全，右上角 ⤢ 进全屏（那里没有翻页手势来抢轴）。 */
+let sx=0, sy=0, st=0, drag=false, lock=null;
+let onCtl=false;
+const noSwipe = t => t && t.closest && (t.closest('.ctl') || t.closest('pre'));
+
+/* 拖到一半时，下一张卡就已经贴在屏幕边上跟着手指走了 ——
+   松手前就能瞄到它，松手后是接着动，不存在「等它加载」这回事。 */
+function preparePeer(dir){
+  if(peerDir === dir) return;
+  const idle = other(), next = pos + dir;
+  peerDir = 0;
+  idle.classList.add('gone');
+  if(next < 0 || next >= deck.length) return;     // 到头了，边上没有下一张
+  bump();                                          // 让排队中的 settle 作废
+  idle.classList.remove('gone');
+  idle.style.transition='none'; idle.style.opacity='1';
+  idle.style.transform=`translateX(${dir*112}%)`;
+  idle.style.zIndex='1'; card.style.zIndex='2';
+  renderFace(idle, deck[next], false);
+  peerDir = dir;
+}
+
+function dragCard(dx){
+  card.classList.add('hold');
+  card.style.transition='none';
+  card.style.transform=`translateX(${dx}px) rotate(${dx*0.035}deg)`;
+  card.style.opacity = String(Math.max(.45, 1-Math.abs(dx)/460));
+  if(peerDir){
+    const p = other();
+    p.style.transition='none';
+    p.style.transform=`translateX(${peerDir*112}%) translateX(${dx}px)`;
+  }
+}
+function releaseCard(){
+  card.style.transition='transform .2s,opacity .2s';
+  card.style.transform=''; card.style.opacity='';
+  if(peerDir){
+    const p = other();
+    p.style.transition='transform .2s';
+    p.style.transform=`translateX(${peerDir*112}%)`;
+  }
+  settleIn(200);
+}
+
+stage.addEventListener('touchstart', e=>{
+  if(busy||doneBox.classList.contains('on')) return;
+  onCtl = !!noSwipe(e.target);
+  if(onCtl) return;                       // 按钮和代码块自己处理
+  bump();                                 // 上一次松手排的收尾作废，别在这次拖拽中途把卡复位
+  const t=e.touches[0]; sx=t.clientX; sy=t.clientY; st=Date.now(); drag=true; lock=null;
+},{passive:true});
+
+/* 【必须是 passive】非 passive 的 touchmove 会让浏览器每一帧都先等 JS 返回
+   才能滚动，竖向滑动因此发涩 —— 解法面内容多，这个代价尤其明显。
+   不再 preventDefault，横向由上面的 touch-action 保证浏览器不会插手。 */
+stage.addEventListener('touchmove', e=>{
+  if(!drag) return;
+  const t=e.touches[0], dx=t.clientX-sx, dy=t.clientY-sy;
+  if(lock===null){
+    if(Math.abs(dx)<6 && Math.abs(dy)<6) return;
+    lock = Math.abs(dx) > Math.abs(dy)*1.4 ? 'x' : 'y';   // 纵向留给背面滚动
+  }
+  if(lock!=='x') return;
+  preparePeer(dx<0 ? 1 : -1);      // 反向拖回去也会换成另一边那张
+  dragCard(dx);
+},{passive:true});
+
+stage.addEventListener('touchend', e=>{
+  if(!drag) return; drag=false;
+  const t=e.changedTouches[0], dx=t.clientX-sx, dy=t.clientY-sy, dt=Date.now()-st;
+  card.style.transition='';
+  if(lock==='x' && (Math.abs(dx)>62 || (Math.abs(dx)>28 && dt<250))){
+    card.style.transform=''; card.style.opacity='';
+    go(dx<0?1:-1); return;
+  }
+  if(lock==='x') releaseCard();
+  if(lock===null && dt<320 && Math.abs(dx)<10 && Math.abs(dy)<10) flip();
+},{passive:true});
+
+/* ---------- 鼠标：拖拽换卡 + 点击翻面（桌面） ----------
+   触屏那套用的是 touch 事件，鼠标一个都收不到，所以桌面上滑不动卡。 */
+let msx=0, msy=0, mst=0, mdrag=false, mlock=null, mfar=false;
+
+stage.addEventListener('mousedown', e=>{
+  if(!MOUSE) return;      // iOS 点一下也会补发一组合成 mouse 事件，别让它插进翻面动画
+  if(e.button!==0 || busy || doneBox.classList.contains('on')) return;
+  if(noSwipe(e.target)) return;
+  bump();
+  msx=e.clientX; msy=e.clientY; mst=Date.now(); mdrag=true; mlock=null; mfar=false;
+});
+addEventListener('mousemove', e=>{
+  if(!mdrag) return;
+  const dx=e.clientX-msx, dy=e.clientY-msy;
+  if(mlock===null){
+    if(Math.abs(dx)<6 && Math.abs(dy)<6) return;
+    mlock = Math.abs(dx) > Math.abs(dy)*1.4 ? 'x' : 'y';
+    if(mlock==='x') document.body.classList.add('dragging');
+  }
+  if(mlock!=='x') return;
+  e.preventDefault(); mfar = mfar || Math.abs(dx)>10;
+  preparePeer(dx<0 ? 1 : -1);
+  dragCard(dx);
+});
+addEventListener('mouseup', e=>{
+  if(!mdrag) return; mdrag=false;
+  document.body.classList.remove('dragging');
+  const dx=e.clientX-msx, dt=Date.now()-mst;
+  card.style.transition='';
+  if(mlock==='x' && (Math.abs(dx)>62 || (Math.abs(dx)>28 && dt<250))){
+    card.style.transform=''; card.style.opacity='';
+    go(dx<0?1:-1); return;
+  }
+  if(mlock==='x') releaseCard();
+});
+
+stage.addEventListener('click', e=>{
+  if(!MOUSE) return;                                // 触屏走 touchend 那条路
+  if(doneBox.classList.contains('on')) return;
+  if(mfar){ mfar=false; return; }                   // 刚拖完，不要顺手翻面
+  if(e.target.closest && e.target.closest('.ctl')) return;
+  if(window.getSelection && String(window.getSelection())) return;   // 在选代码
+  flip();
+});
+
+el('#navPrev').onclick = ()=>go(-1);
+el('#navNext').onclick = ()=>go(1);
+
+addEventListener('keydown', e=>{
+  if(e.metaKey||e.ctrlKey||e.altKey) return;
+  if(codefs.classList.contains('on')){ if(e.key==='Escape') closeCode(); return; }
+  if(sheet.classList.contains('on') && e.key!=='Escape') return;
+  if(e.key===' '||e.key==='Enter'){e.preventDefault();flip();return;}
+  if(e.key==='ArrowRight'){go(1);return;}
+  if(e.key==='ArrowLeft'){go(-1);return;}
+  if(e.key==='j'||e.key==='J'){mark(true);return;}
+  if(e.key==='k'||e.key==='K'){mark(false);return;}
+  if(e.key>='1' && e.key<='3'){                     // 1/2/3 = 逐级放提示
+    const c=CARDS[deck[pos]];
+    if(!flipped && c && c.k==='P' && c.hints && +e.key<=c.hints.length){
+      shown=Math.max(shown,+e.key); paint();
+    }
+  }
+});
+
+/* ---------- sheet ---------- */
+const sheet=el('#sheet'), scrim=el('#scrim');
+const openSheet=()=>{renderSecs();sheet.classList.add('on');scrim.classList.add('on');};
+const closeSheet=()=>{sheet.classList.remove('on');scrim.classList.remove('on');};
+el('#menu').onclick=openSheet; scrim.onclick=closeSheet;
+sheet.querySelector('.grab').onclick=closeSheet;
+addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet();});
+
+/* 展开状态只存在内存里，不进 prefs —— 它是「我现在在翻哪一类」，
+   不是设置。跨设备同步这个只会互相打架。 */
+let sOpen = new Set();
+
+function renderSecs(){
+  const host=el('#secs'); host.innerHTML='';
+  const names = Object.keys(SECTIONS).filter(name=>CARDS.some(c=>c.s===name));
+  el('#secN').textContent = T('menu.topic_count', {n: names.length});
+
+  names.forEach(name=>{
+    const idxs = CARDS.map((c,i)=>i).filter(i=>CARDS[i].s===name);
+    const n = idxs.length;
+    const k = idxs.filter(i=>known.has(i)).length;
+    const t = idxs.filter(i=>todo.has(CARDS[i].lc)).length;
+    const on = !S.secs.length || S.secs.includes(name);
+
+    const g=document.createElement('div');
+    g.className='sgrp'+(sOpen.has(name)?' open':'');
+
+    const head=document.createElement('div'); head.className='sgh';
+    head.innerHTML=`<div class="nm"><span class="car">›</span>
+        <span class="sw" style="background:${SECTIONS[name]}"></span>
+        <span class="t">${name}</span></div>
+      <span class="rc">${k}/${n}${t ? T('sec.todo', {t}) : ''}</span>
+      <span class="chk ${on?'on':''}">✓</span>`;
+
+    head.querySelector('.nm').onclick=()=>{
+      sOpen.has(name)?sOpen.delete(name):sOpen.add(name); renderSecs();
+    };
+    head.querySelector('.chk').onclick=()=>{
+      const all=Object.keys(SECTIONS);
+      let cur = S.secs.length?[...S.secs]:[...all];
+      cur = cur.includes(name)?cur.filter(x=>x!==name):[...cur,name];
+      if(!cur.length) cur=[...all];
+      S.secs = cur.length===all.length?[]:cur;
+      savePrefs(); buildDeck(false); flipped=false; doneBox.classList.remove('on');
+      paint(); renderSecs();
+    };
+    g.appendChild(head);
+
+    const body=document.createElement('div'); body.className='sgb';
+
+    const btn=document.createElement('button'); btn.className='only';
+    btn.textContent=T('menu.only_topic', {n});
+    btn.onclick=()=>{
+      // 把牌组收成这一类，并且清掉另外两个过滤器 —— 主动复习一类时，
+      // 「只看没记住的」会把已经记住的那些藏起来，正好和目的相反。
+      S.secs=[name]; S.onlyTodo=false; S.onlyUnknown=false;
+      savePrefs(); buildDeck(false); flipped=false; shown=0;
+      doneBox.classList.remove('on'); paint(); noteView(); closeSheet();
+    };
+    body.appendChild(btn);
+
+    // 概念卡排在前面：复习一类时，先过一遍 pattern 模板，再看题目怎么套。
+    idxs.sort((a,b)=>(CARDS[a].k==='C'?0:1)-(CARDS[b].k==='C'?0:1));
+    idxs.forEach(i=>{
+      const c=CARDS[i], isK=known.has(i), isT=todo.has(c.lc);
+      const row=document.createElement('div'); row.className='citem';
+      // 「记住了」和「待练」不是互斥的：一道题可以既记得住、又想再刷一遍。
+      // 所以左边的记号只表示记没记住，待练单独挂一个标签，两个状态都看得见。
+      row.innerHTML=`<span class="st ${isK?'k':''}">${isK?'✓':'○'}</span>
+        <span class="tx">${c.t}</span>
+        ${isT?`<span class="tag todo">${T('tag.todo')}</span>`:''}
+        <span class="tag">${T(c.k==='C' ? 'tag.concept' : 'tag.problem')}</span>`;
+      row.onclick=()=>{ goToCard(i); closeSheet(); };
+      body.appendChild(row);
+    });
+
+    g.appendChild(body);
+    host.appendChild(g);
+  });
+
+  // 只有在筛过之后才出现 —— 平时不占地方，被筛窄了又能一键回到全部。
+  if(S.secs.length){
+    const back=document.createElement('button'); back.className='wide';
+    back.textContent=T('menu.restore_all', {k: S.secs.length, n: names.length});
+    back.onclick=()=>{
+      S.secs=[]; savePrefs(); buildDeck(true); doneBox.classList.remove('on');
+      paint(); renderSecs();
+    };
+    host.appendChild(back);
+  }
+  el('#kindP').querySelector('.chk').classList.toggle('on', !S.kinds.length || S.kinds.includes('P'));
+  el('#kindC').querySelector('.chk').classList.toggle('on', !S.kinds.length || S.kinds.includes('C'));
+  el('#onlyTodo').querySelector('.chk').classList.toggle('on',S.onlyTodo);
+  el('#todoN').textContent = todo.size ? `· ${todo.size}` : T('menu.todo_empty');
+  el('#syncTxt').textContent = syncMsg;
+  el('#keyShow').textContent = SK ? SK.slice(0,6) + '…' + SK.slice(-4) : '';
+  try{
+    const b = JSON.parse(localStorage.getItem(BKEY) || 'null');
+    el('#restore').textContent = b
+      ? T('menu.restore_local_n', {n: b.n}) : T('menu.restore_local');
+  }catch(e){}
+  const tl = el('#todoList'); tl.innerHTML = '';
+  CARDS.filter(c=>todo.has(c.lc)).forEach(c=>{
+    const r=document.createElement('div'); r.className='row';
+    r.innerHTML=`<span class="sw" style="background:${c.c}"></span><span>${c.t}</span>`;
+    r.onclick=()=>{ goToCard(c.n-1); closeSheet(); };
+    tl.appendChild(r);
+  });
+  // 变种题也能加进待练 —— 它们没有卡片，点了直接开 LeetCode
+  VARIANTS.filter(v=>todo.has(v.lc)).forEach(v=>{
+    const r=document.createElement('div'); r.className='row';
+    r.innerHTML=`<span class="sw" style="background:${v.c};opacity:.45"></span>
+      <span>${v.t}</span><span class="rc">${T('tag.variant')}</span>`;
+    r.onclick=()=>window.open(`https://leetcode.com/problems/${v.g}/`,'_blank','noopener');
+    tl.appendChild(r);
+  });
+  renderVars();
+  el('#onlyUnknown').querySelector('.chk').classList.toggle('on',S.onlyUnknown);
+  el('#shuffleRow').querySelector('.chk').classList.toggle('on',S.shuffled);
+  el('#wrapRow').querySelector('.chk').classList.toggle('on',S.wrap!==false);
+}
+/* 变种题面板：按 section 折叠，默认全收起来。134 条平铺开会把菜单撑成一条长龙，
+   而且它们本来就是「需要的时候去翻」，不是每天要扫的东西。 */
+let vOpen = new Set();
+function renderVars(){
+  const host = el('#varList'); host.innerHTML = '';
+  const inList = VARIANTS.filter(v=>todo.has(v.lc)).length;
+  el('#varN').textContent = `· ${VARIANTS.length}${inList ? T('sec.todo', {t: inList}) : ''}`;
+  const bySec = new Map();
+  VARIANTS.forEach(v=>{ if(!bySec.has(v.s)) bySec.set(v.s, []); bySec.get(v.s).push(v); });
+
+  bySec.forEach((items, sec)=>{
+    const g = document.createElement('div');
+    g.className = 'vgrp' + (vOpen.has(sec) ? ' open' : '');
+    const n = items.filter(v=>todo.has(v.lc)).length;
+    const head = document.createElement('div');
+    head.className = 'vgh';
+    head.innerHTML = `<span class="car">›</span>
+      <span class="sw" style="background:${items[0].c}"></span>
+      <span>${sec}</span>
+      <span class="rc">${n ? n + '/' : ''}${items.length}</span>`;
+    head.onclick = ()=>{ vOpen.has(sec) ? vOpen.delete(sec) : vOpen.add(sec); renderVars(); };
+    g.appendChild(head);
+
+    const body = document.createElement('div');
+    body.className = 'vgb';
+    items.forEach(v=>{
+      const row = document.createElement('div');
+      row.className = 'vitem';
+      // 一道题常常挂在两三张母题卡下面，把来源都列出来才知道它在练什么
+      const from = v.from.map(f=>`${f.t.replace(/^LC \d+ · /,'')} → ${f.d}`).join('<br>');
+      row.innerHTML = `<div class="vinfo">
+          <a target="_blank" rel="noopener"
+             href="https://leetcode.com/problems/${v.g}/">${v.t}<i>↗</i></a>
+          <div class="vfrom">${from}</div>
+        </div>
+        <button class="vadd ${todo.has(v.lc) ? 'on' : ''}"
+                aria-label="${T('menu.add_todo_aria')}">${todo.has(v.lc) ? '✓' : '＋'}</button>`;
+      row.querySelector('.vadd').onclick = e=>{
+        e.stopPropagation();
+        setTodo(v.lc, !todo.has(v.lc)); save(); renderSecs();
+      };
+      body.appendChild(row);
+    });
+    g.appendChild(body);
+    host.appendChild(g);
+  });
+}
+
+const toggleKind = (k)=>{
+  let cur = S.kinds.length ? [...S.kinds] : ['P','C'];
+  cur = cur.includes(k) ? cur.filter(x=>x!==k) : [...cur, k];
+  if(!cur.length) cur = ['P','C'];
+  S.kinds = cur.length === 2 ? [] : cur;
+  savePrefs(); buildDeck(false); flipped=false; doneBox.classList.remove('on'); paint(); renderSecs();
+};
+el('#kindP').onclick=()=>toggleKind('P');
+el('#kindC').onclick=()=>toggleKind('C');
+el('#onlyTodo').onclick=()=>{S.onlyTodo=!S.onlyTodo;savePrefs();buildDeck(false);flipped=false;shown=0;
+  doneBox.classList.remove('on');paint();renderSecs();};
+el('#copyTodo').onclick=()=>{
+  const rows = CARDS.filter(c=>todo.has(c.lc)).map(c=>[c.t, c.slug])
+    .concat(VARIANTS.filter(v=>todo.has(v.lc)).map(v=>[v.t + '  (' + T('tag.variant') + ')', v.g]));
+  const txt = rows.map(([t,g])=>`${t}\nhttps://leetcode.com/problems/${g}/`).join('\n\n')
+    || T('menu.todo_empty_copy');
+  const done = ()=>{ const b=el('#copyTodo'); b.textContent=T('menu.copied');
+                     setTimeout(()=>b.textContent=T('menu.copy_todo'),1400); };
+  try{ navigator.clipboard.writeText(txt).then(done, ()=>prompt(T('menu.copy_manual'), txt)); }
+  catch(e){ prompt(T('menu.copy_manual'), txt); }
+};
+el('#onlyUnknown').onclick=()=>{S.onlyUnknown=!S.onlyUnknown;savePrefs();buildDeck(false);flipped=false;
+  doneBox.classList.remove('on');paint();renderSecs();};
+el('#shuffleRow').onclick=()=>{S.shuffled=!S.shuffled;if(S.shuffled)S.seed=newSeed();savePrefs();buildDeck(false);flipped=false;
+  doneBox.classList.remove('on');paint();renderSecs();};
+el('#wrapRow').onclick=()=>{S.wrap=!(S.wrap!==false);save();
+  document.body.classList.toggle('wrap',S.wrap);paint();renderSecs();};
+el('#reset').onclick=()=>{clearKnown();save();buildDeck(false);flipped=false;
+  doneBox.classList.remove('on');paint();renderSecs();closeSheet();};
+el('#shuffle').onclick=()=>{S.shuffled=true;S.seed=newSeed();savePrefs();buildDeck(false);flipped=false;
+  doneBox.classList.remove('on');paint();};
+el('#yes').onclick=()=>mark(true);
+el('#no').onclick=()=>mark(false);
+el('#again').onclick=()=>{doneBox.classList.remove('on');buildDeck(false);flipped=false;paint();};
+
+/* ---------- 跨设备同步 ----------
+   密钥从网址 #k=… 读一次就存进 localStorage，然后把 hash 从地址栏抹掉。
+   每次同步是一个 POST 往返：把本机的 doc 发上去，服务端逐条按时间戳合并后
+   把合并结果发回来。没有单独的「拉取」——合并本身就是拉取。 */
+const SKEY = 'gc_sync_key', SYNC_URL = '/api/state';
+
+/* 密钥【故意留在地址栏里】，不要再 replaceState 抹掉它。
+   iOS 的主屏幕 App 有一个和 Safari 完全隔离的存储罐 —— localStorage、cookie、
+   Service Worker 都不共享。抹掉 hash 之后「添加到主屏幕」抓到的是不带密钥的
+   网址，主屏幕那个 App 一启动就是空的，看起来就像「进度被清了」。
+   把 k 留在 URL 上，图标本身就带着密钥，Safari 隔 7 天清 localStorage（ITP）
+   之后也能自己恢复。代价是密钥在地址栏可见 —— 它只护着刷题进度，值。 */
+/* localStorage 会被 iOS 的存储清理带走。cookie 走的是另一条清理路径，
+   多存一份，两个只要活下来一个，密钥就还在。 */
+function keyCookie(v){
+  try{
+    if(v === undefined){
+      const m = /(?:^|;\s*)gc_k=([a-f0-9]{32})/.exec(document.cookie || '');
+      return m ? m[1] : '';
+    }
+    document.cookie = 'gc_k=' + v + ';path=/;max-age=63072000;samesite=lax';
+  }catch(e){}
+  return '';
+}
+
+function readKey(){
+  // 大小写都认。密钥是十六进制，大写小写是同一把钥匙，但只写 [a-f0-9] 的话，
+  // 地址栏里带一个大写字母就整条匹配不上，界面显示「未开启」——
+  // 而菜单里那个输入框（setKey）是先转小写再校验的，于是同一把密钥
+  // 「粘进输入框能用、放进链接不能用」，非常难猜。
+  const m = /[#&]k=([a-fA-F0-9]{32})\b/.exec(location.hash || '');
+  if(m){
+    const k = m[1].toLowerCase();
+    try{ localStorage.setItem(SKEY, k); }catch(e){}
+    keyCookie(k);
+    return k;
+  }
+  let k = '';
+  try{ k = localStorage.getItem(SKEY) || localStorage.getItem('cf_sync_key') || ''; }catch(e){}
+  if(!k) k = keyCookie();                       // localStorage 被清了，cookie 还在
+  if(k){ try{ localStorage.setItem(SKEY, k); }catch(e){} keyCookie(k); }
+  return k;
+}
+let SK = readKey();
+
+/* 【密钥必须一直留在地址栏里】这是「记录又没了」的真正原因：
+   密钥从 localStorage 读出来时，地址栏是干净的；这时候「添加到主屏幕」，
+   iOS 抓走的就是一个不带密钥的网址。主屏幕 App 的存储和 Safari 完全隔离，
+   新图标启动 = 空罐子 + 没有密钥 = 一片空白，而且看不出是为什么。
+   只要有密钥就把它写回 hash，无论它是从哪儿来的。 */
+function pinKey(){
+  if(SK && location.hash.indexOf('k=') < 0){
+    try{ history.replaceState(null, '', location.pathname + location.search + '#k=' + SK); }
+    catch(e){ location.hash = 'k=' + SK; }
+  }
+}
+pinKey();
+
+const canSync = ()=> !!SK && /^https?:$/.test(location.protocol);
+
+/* 手动重新连接：换设备、清了缓存、或者主屏幕 App 是个新罐子时的兜底。
+   不用去翻当初那条链接，把密钥粘进来就行。 */
+function setKey(k){
+  k = String(k||'').trim().toLowerCase().replace(/^.*[#&]k=/, '').slice(0, 32);
+  if(!/^[a-f0-9]{32}$/.test(k)) return false;
+  SK = k;
+  try{ localStorage.setItem(SKEY, k); }catch(e){}
+  keyCookie(k);
+  if(location.hash.indexOf('k=') < 0) location.hash = 'k=' + k;
+  sync();
+  return true;
+}
+
+let syncMsg = T(SK ? 'sync.pending' : 'sync.off');
+function setSync(m){ syncMsg = m; const n = document.getElementById('syncTxt'); if(n) n.textContent = m; }
+
+function snapshot(){ return {v:1, cards:S.cards||{}, todoM:S.todoM||{}, prefs:prefsOut(), view:viewOut()}; }
+
+/* 逐条取时间戳新的那条。和 netlify/functions/state.mjs 里的规则必须一致，
+   两边用同一套合并，同步就没有「谁覆盖谁」这回事。 */
+function mergeMap(a, b){
+  const out = Object.assign({}, a || {});
+  for(const [k, v] of Object.entries(b || {})){
+    if(!v || typeof v !== 'object') continue;
+    const t = Number(v.t) || 0;
+    if(!out[k] || t >= (Number(out[k].t) || 0)) out[k] = v;
+  }
+  return out;
+}
+
+/* 本地兜底快照：只在「记住的张数比上次多」时覆盖，所以它永远是历史最好成绩。
+   同步再怎么出问题，菜单里点一下就能捞回来。 */
+const BKEY = 'gc_v1_bak';
+function backup(){
+  try{
+    const prev = JSON.parse(localStorage.getItem(BKEY) || 'null');
+    const n = Object.values(S.cards || {}).filter(e => e && e.k).length;
+    if(!prev || n >= (prev.n || 0))
+      localStorage.setItem(BKEY, JSON.stringify({n, at: Date.now(), doc: snapshot()}));
+  }catch(e){}
+}
+function restoreBackup(){
+  try{
+    const b = JSON.parse(localStorage.getItem(BKEY) || 'null');
+    if(!b || !b.doc) return null;
+    S.cards = mergeMap(S.cards, b.doc.cards);
+    S.todoM = mergeMap(S.todoM, b.doc.todoM);
+    applyPrefs(b.doc.prefs);
+    store.set(S); hydrate(); buildDeck(true); paint(); renderSecs();
+    schedulePush();
+    return b;
+  }catch(e){ return null; }
+}
+const fingerprint = ()=> [...known].sort((a,b)=>a-b).join(',') + '|' + [...todo].sort((a,b)=>a-b).join(',');
+
+let pushT = null, syncing = false, firstSync = true;
+function schedulePush(){
+  if(!canSync()) return;
+  clearTimeout(pushT); pushT = setTimeout(sync, 1500);
+}
+
+async function sync(){
+  if(!canSync() || syncing) return;
+  syncing = true; setSync(T('sync.busy'));
+  const before = fingerprint();
+  try{
+    const r = await fetch(SYNC_URL, {method:'POST', cache:'no-store',
+      headers:{'content-type':'application/json'},
+      body: JSON.stringify({k: SK, doc: snapshot()})});
+    if(!r.ok) throw new Error('HTTP ' + r.status + ' ' + (await r.text()).slice(0,80));
+    const m = await r.json();
+    // 【绝不用远端结果替换本地】——这条是上一版丢数据的直接原因。
+    // 服务端只要因为任何理由返回空（函数没部署好、请求体没送到、换了 site 导致
+    // blob 是新的），替换就等于当场清空进度，而且下一行立刻写进 localStorage。
+    // 改成和服务端同一套逐条时间戳合并：本地只会前进，不会被截断。
+    S.cards = mergeMap(S.cards, m.cards);
+    S.todoM = mergeMap(S.todoM, m.todoM);
+    const prefsChanged = applyPrefs(m.prefs);
+    store.set(S); hydrate(); dirty = false;
+    backup();
+    // 只有远端真的带来了变化才重排牌组，否则会在你翻卡翻到一半时闪一下
+    const dataChanged = fingerprint() !== before;
+    if(dataChanged || prefsChanged) buildDeck(true);
+    // 【远端位置只在打开后的第一次同步时套用】否则另一台设备一动，
+    // 你手里这张卡就会在阅读中途被抽走 —— 同步应该是「打开时接上」，
+    // 不是「两块屏幕互相拽」。必须排在 buildDeck 之后：牌组先定，位置才有意义。
+    const jumped = firstSync && applyView(m.view);
+    firstSync = false;
+    if(dataChanged || prefsChanged || jumped) paint();
+    renderSecs();
+    setSync(T('sync.ok', {k: known.size, n: CARDS.length}));
+  }catch(e){
+    // 具体错误必须露出来。上一版只说「同步失败」，结果没人知道是函数没部署、
+    // 密钥不对、还是网断了 —— 三种毛病长得一模一样。
+    setSync(T('sync.fail', {err: (e && e.message ? e.message : e)}));
+  }finally{ syncing = false; }
+}
+
+/* iOS 杀页面时 beforeunload/unload 经常不触发，visibilitychange→hidden 是唯一稳的。
+   sendBeacon 不受页面被回收影响，密钥放在 body 里而不是 query，免得进访问日志。 */
+function flush(){
+  if(!canSync() || !dirty) return;
+  clearTimeout(pushT);
+  try{
+    const blob = new Blob([JSON.stringify({k: SK, doc: snapshot()})], {type:'application/json'});
+    if(navigator.sendBeacon(SYNC_URL, blob)) dirty = false;
+  }catch(e){}
+}
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'hidden') flush();
+  else if(canSync()) sync();                 // 切回来先看看别的设备刷了什么
+});
+addEventListener('pagehide', flush);
+
+el('#copyKey').onclick = ()=>{
+  if(!SK){ setSync(T('sync.nokey')); return; }
+  const done = ()=> setSync(T('sync.key_copied'));
+  if(navigator.clipboard) navigator.clipboard.writeText(SK).then(done, ()=>prompt(T('sync.key_prompt'), SK));
+  else prompt(T('sync.key_prompt'), SK);
+};
+
+el('#restore').onclick = ()=>{
+  const b = restoreBackup();
+  const btn = el('#restore');
+  btn.textContent = b ? T('menu.restore_ok', {n: b.n}) : T('menu.restore_none');
+  setTimeout(()=>btn.textContent = T('menu.restore_local'), 2200);
+};
+
+/* 进度码：把 snapshot() 压成一行 base64。
+   导入走的是和同步一模一样的 mergeMap —— 逐条按时间戳取新的那条，
+   所以导入只会让进度前进，绝不会把已经记住的抹掉。 */
+function encProg(){
+  const raw = JSON.stringify({v:1, doc:snapshot()});
+  return btoa(unescape(encodeURIComponent(raw)));
+}
+function decProg(code){
+  const o = JSON.parse(decodeURIComponent(escape(atob(String(code||'').trim()))));
+  if(!o || !o.doc) throw new Error('not a progress code');
+  return o.doc;
+}
+
+el('#expProg').onclick = ()=>{
+  const code = encProg();
+  const n = Object.values(S.cards||{}).filter(e=>e&&e.k).length;
+  const done = ()=> setSync(T('menu.export_ok', {n}));
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(code).then(done, ()=>prompt(T('menu.export_prompt'), code));
+  } else prompt(T('menu.export_prompt'), code);
+};
+
+el('#impSet').onclick = ()=>{
+  const inp = el('#impIn');
+  try{
+    const doc = decProg(inp.value);
+    const before = known.size;
+    S.cards = mergeMap(S.cards, doc.cards);
+    S.todoM = mergeMap(S.todoM, doc.todoM);
+    applyPrefs(doc.prefs);
+    store.set(S); backup(); hydrate(); buildDeck(true);
+    applyView(doc.view);
+    paint(); renderSecs();
+    schedulePush();
+    inp.value = '';
+    setSync(T('menu.import_ok', {k: known.size, n: CARDS.length, d: known.size-before}));
+  }catch(e){ setSync(T('menu.import_fail')); }
+};
+el('#impIn').addEventListener('keydown', e=>{ if(e.key==='Enter') el('#impSet').click(); });
+
+el('#keySet').onclick = ()=>{
+  const inp = el('#keyIn');
+  if(setKey(inp.value)){ inp.value=''; setSync(T('sync.connected')); renderSecs(); }
+  else setSync(T('sync.bad_key'));
+};
+el('#keyIn').addEventListener('keydown', e=>{ if(e.key==='Enter') el('#keySet').click(); });
+
+el('#syncLink').onclick = ()=>{
+  if(!SK){ setSync(T('sync.link_nokey')); return; }
+  const url = location.origin + location.pathname + '#k=' + SK;
+  const done = ()=> setSync(T('sync.link_copied'));
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(done, ()=>prompt(T('sync.link_prompt'), url));
+  } else prompt(T('sync.link_prompt'), url);
+};
+
+/* 视口 / 安全区的真实数值。env() 只能在 CSS 里读，所以借一个探针元素量出来。 */
+(function(){
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;'
+    + 'padding:env(safe-area-inset-top) env(safe-area-inset-right)'
+    + ' env(safe-area-inset-bottom) env(safe-area-inset-left)';
+  document.body.appendChild(probe);
+  const c = getComputedStyle(probe);
+  const n = v => Math.round(parseFloat(v) || 0);
+  const st = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+  // 屏幕高 > 视口高 = iOS 把网页装进了一个比屏幕矮的框（viewport-fit=cover 没生效）。
+  // 这时候底部那条边在页面之外，任何 CSS 都填不了 —— 必须重新「添加到主屏幕」
+  // 才能让 iOS 重新读取 cover 设置。把差值直接写出来，一眼就能判断。
+  const lost = Math.max(0, Math.round((screen.height || 0) - innerHeight));
+  el('#vp').textContent = T('vp', {vw: innerWidth, vh: innerHeight, sw: screen.width, sh: screen.height,
+                                   top: n(c.paddingTop), bottom: n(c.paddingBottom)})
+    + T(st ? 'vp.home' : 'vp.browser')
+    + (st && lost > 8 ? T('vp.short', {px: lost}) : '');
+  probe.remove();
+})();
+
+/* 【本地也要恢复位置】以前位置只在同步回来时才套用，于是断网、还没同步完、
+   或者压根没连同步的时候，重开永远回到第 1 张 —— 明明本地存着上次看到哪张。
+   顺序也一样：种子存在本地，buildDeck 直接就能洗出同样的牌序。 */
+function restoreLocalView(){
+  const idx = IDX.get(S.viewCard || '');
+  if(idx === undefined) return;
+  const i = deck.indexOf(idx);
+  if(i >= 0){ pos = i; flipped = false; shown = 0; }
+}
+
+applyI18n();
+buildDeck(false); restoreLocalView(); paint();
+if(canSync()) sync();
+
+/* 装到主屏幕之后如果没有密钥，界面上任何地方都看不出来 —— 进度悄悄只存本机。
+   这种静默降级正是最难发现的那类问题，所以显式说出来。 */
+const STANDALONE = navigator.standalone === true ||
+                   matchMedia('(display-mode: standalone)').matches;
+if(STANDALONE && !SK && /^https?:$/.test(location.protocol)){
+  el('#nokey').classList.add('on');
+  // 【不要自动消失】这条横幅是唯一能解释「为什么一片空白」的东西。
+  // 12 秒后自己藏起来，等于让用户对着一个空 App 猜。留着，直到他去处理。
+  el('#nokeyGo').onclick = ()=>{ el('#nokey').classList.remove('on'); openSheet(); };
+}
+
+/* ---------- Chrome / Edge 安装应用 ----------
+   sw.js 是网络优先：新部署一刷新就生效，断网才回落到缓存。
+   file:// 打开时直接跳过，单文件版照样能用。 */
+const SW_OK = location.protocol==='https:' ||
+              ['localhost','127.0.0.1'].includes(location.hostname);
+if('serviceWorker' in navigator && SW_OK){
+  addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
