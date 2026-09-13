@@ -4,3 +4,5 @@ build/
 dist/
 .venv/
 src/grindcards/starter/build/
+*.png
+!docs/*.png
