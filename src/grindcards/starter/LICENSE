@@ -13,5 +13,5 @@ Problem numbers and titles refer to problems on LeetCode (leetcode.com) and are 
 to identify them. Problem statements, examples, hints, reasoning, figures and solutions
 here were written independently for this deck.
 
-The GrindCards engine and CLI (everything outside this directory) are MIT-licensed; see the
-LICENSE file at the repository root.
+The GrindCards engine and CLI (everything outside this directory) are licensed under the
+GNU AGPL-3.0; see the LICENSE file at the repository root.

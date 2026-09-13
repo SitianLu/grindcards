@@ -5,6 +5,6 @@
   "author": { "name": "Sitian Lu" },
   "homepage": "https://github.com/SitianLu/grindcards",
   "repository": "https://github.com/SitianLu/grindcards",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "keywords": ["flashcards", "coding-interview", "leetcode", "spaced-repetition"]
 }

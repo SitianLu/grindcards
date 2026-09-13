@@ -100,7 +100,11 @@ on cards (the verifier runs Python).
 
 ## License
 
-Engine and CLI: [MIT](LICENSE). Starter-deck content (`src/grindcards/starter`):
+Engine, CLI and plugin: [AGPL-3.0](LICENSE). Use it, change it, self-host it; if you offer
+a modified version as a service, share your changes. Commercial licenses without the AGPL
+obligations are available — open an issue.
+
+Starter-deck content (`src/grindcards/starter`):
 [CC BY-NC-SA 4.0](src/grindcards/starter/LICENSE) — copy it, remix it, don't sell it.
 Problem titles and numbers refer to [LeetCode](https://leetcode.com); statements and
 examples are written from scratch.

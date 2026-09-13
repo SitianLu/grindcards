@@ -7,13 +7,13 @@ name = "grindcards"
 version = "0.1.0"
 description = "Coding-interview flashcards you build with your AI agent — from the problems you got wrong. Every solution is executed on every build."
 readme = "README.md"
-license = { text = "MIT" }
+license = { text = "AGPL-3.0-only" }
 requires-python = ">=3.10"
 authors = [{ name = "Sitian Lu" }]
 keywords = ["flashcards", "coding-interview", "leetcode", "spaced-repetition", "claude-code"]
 classifiers = [
   "Programming Language :: Python :: 3",
-  "License :: OSI Approved :: MIT License",
+  "License :: OSI Approved :: GNU Affero General Public License v3",
   "Topic :: Education",
 ]
 dependencies = ["tomli>=2; python_version < '3.11'"]
