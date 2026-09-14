@@ -2,6 +2,10 @@
 
 **Coding-interview flashcards you build with your agent — from the problems you got wrong.**
 
+[![PyPI](https://img.shields.io/pypi/v/grindcards)](https://pypi.org/project/grindcards/)
+[![CI](https://github.com/SitianLu/grindcards/actions/workflows/ci.yml/badge.svg)](https://github.com/SitianLu/grindcards/actions/workflows/ci.yml)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
+
 You fail a problem. You tell Claude (or any agent with the skill) *where* it broke. It asks
 you three questions and writes a card in your own deck: which pattern and why, the reasoning
 in first person — with your dead-end kept in — the full code, and the two or three lines you
