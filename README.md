@@ -95,12 +95,19 @@ practice list, review-by-topic, shuffle, "only what I don't know yet", export/im
 progress, dark mode, and an optional cross-device sync key if you host the tiny endpoint
 yourself. It's one HTML file; nothing phones home.
 
+**Spaced repetition.** By default the app shows only the cards that are due. "Got it" sends a
+card back 1, 3, 8, 20, then 50 days later (capped at 90). "Again" keeps it in today's pile until
+you get it. The Got-it button shows the next interval, and once today's cards are done the app
+tells you when the next batch is due. You can still review ahead, or turn "Only cards due for
+review" off in the menu to drill the whole deck. The schedule is stored with each card's
+progress, so it syncs, exports and imports the same way.
+
 ## Status
 
-v0.1 — the engine, the CLI, the Claude Code skill and the starter deck. Things that are
-deliberately not here yet: spaced-repetition scheduling (the deck is small enough to grind
-whole), a hosted service (bring your own agent, your own static host), and non-Python code
-on cards (the verifier runs Python).
+v0.2 — the engine, the CLI, the Claude Code skill, the starter deck, and spaced-repetition
+scheduling in the app. Things that are deliberately not here yet: a hosted service (bring
+your own agent, your own static host), and non-Python code on cards (the verifier runs
+Python).
 
 ## License
 

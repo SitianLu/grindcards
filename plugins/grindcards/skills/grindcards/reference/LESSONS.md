@@ -79,6 +79,25 @@ omits `start_url` for the same reason.
 deployed, new site, missing body) once wiped a deck's progress on the next write. Merge
 per entry by timestamp, both directions; local only ever moves forward.
 
+**The schedule lives inside the progress entry, not beside it.** A review writes one
+`{k, t, i, d}` entry (known, timestamp, interval, due), so the per-entry newest-wins merge
+in the app, the sync endpoint and export/import carries scheduling with no change to any of
+them. A separate schedule map would have needed its own merge rule, and a device on the old
+build would have kept overwriting `k` without touching the schedule.
+
+**Early reviews don't grow the interval.** Tapping "got it" on a card that isn't due yet
+(review ahead, jumping to it from the menu, a double tap) leaves the schedule as it is.
+Otherwise one sitting could push a card from 1 day to 8 without a single day passing.
+
+**Days roll over at 04:00, not midnight.** A card reviewed at 1am belongs to the previous
+day. Without that, a late-night session schedules its cards a whole day later than the
+same cards reviewed at 11pm.
+
+**An empty due deck is not a filter mistake.** Every other filter widens back to the whole
+deck when it selects nothing; the due filter must not, or "nothing due" shows every card.
+It gets its own caught-up screen, and "review ahead" is in-memory only, so tomorrow's
+review isn't quietly turned off.
+
 **`sw.js` is network-first.** Cache-first pinned users to a stale deck after a deploy.
 
 **Measure layout only after `document.fonts.ready`.** The PDF fitter measured before web

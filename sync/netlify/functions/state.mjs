@@ -16,7 +16,7 @@
 import { getStore } from '@netlify/blobs';
 
 const KEY_RE = /^[a-f0-9]{32}$/;
-const MAX_BODY = 64 * 1024;          // a few hundred cards is a few KB; more is abuse
+const MAX_BODY = 256 * 1024;         // ~100 bytes per card with its schedule: 1000 cards is ~100 KB; more is abuse
 const STORE = 'grindcards-progress';
 
 const json = (body, status = 200) =>
