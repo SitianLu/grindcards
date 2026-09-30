@@ -32,13 +32,27 @@ T0 = at(2026, 10, 1, 10)                     # Thursday 10:00
 
 
 @pytest.fixture(scope="module")
-def app_url(tmp_path_factory):
+def starter(tmp_path_factory):
     root = tmp_path_factory.mktemp("deck")
     copy_starter(root)
     deck = load_deck(root)
     _, built = verify(deck)
+    return deck, built, root
+
+
+@pytest.fixture(scope="module")
+def app_url(starter):
+    deck, built, root = starter
     out = root / "build" / "index.html"
     render_app(deck, built, out)
+    return out.as_uri()
+
+
+@pytest.fixture(scope="module")
+def nosync_url(starter):
+    deck, built, root = starter
+    out = root / "demo" / "index.html"
+    render_app(deck, built, out, sync=False)
     return out.as_uri()
 
 
@@ -179,3 +193,34 @@ def test_due_filter_toggle_is_a_synced_pref(page):
     pg.click("#onlyDue")
     assert not pg.is_visible("#done")
     assert pg.evaluate("S.onlyDue") is False and "onlyDue" in pg.evaluate("prefsOut()")
+
+
+KEY = "0123456789abcdef0123456789abcdef"
+
+
+def test_sync_build_reads_the_key(page, app_url):
+    page.goto(app_url + "#k=" + KEY)
+    page.reload()                              # a hash-only goto doesn't reload the page
+    assert page.evaluate("SK") == KEY
+    page.click("#menu")
+    assert page.is_visible("#keyRow") and page.is_visible("#syncLink")
+    assert page.text_content("#syncSh") == "Cross-device sync"
+
+
+def test_no_sync_build_hides_key_controls(browser, nosync_url):
+    """--no-sync (the GitHub Pages demo): no key is read or pinned, key controls are hidden,
+    export/import stay."""
+    ctx = browser.new_context(timezone_id=TZ)
+    pg = ctx.new_page()
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)))
+    pg.goto(nosync_url + "#k=" + KEY)
+    assert pg.evaluate("SK") == "" and pg.evaluate("canSync()") is False
+    pg.click("#menu")
+    for sel in ("#keyRow", "#syncLink", "#copyKey"):
+        assert not pg.is_visible(sel), sel
+    assert pg.is_visible("#expProg") and pg.is_visible("#impSet")
+    assert pg.text_content("#syncSh") == "Progress"
+    assert "saved in this browser only" in pg.inner_text("#syncTxt")
+    assert not errors, errors
+    ctx.close()

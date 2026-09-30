@@ -12,6 +12,9 @@ in first person — with your dead-end kept in — the full code, and the two or
 want to remember next time. `grindcards build` executes every card's code, then turns the
 deck into a single-file app that works offline on your phone.
 
+**[Try the demo →](https://sitianlu.github.io/grindcards/)** the 20-card starter deck, in your browser, no install.
+Progress stays in your browser.
+
 <p align="center"><img src="docs/demo.gif" width="360" alt="GrindCards: flip a card, reveal hints, switch language"></p>
 
 ## Why not Anki + an editorial?
@@ -93,7 +96,9 @@ Tap or click to flip, swipe or drag to move on, `Space` / `←` `→` / `1`–`3
 keyboard. Progress is stored per card (by title, so adding cards never shifts it), with a
 practice list, review-by-topic, shuffle, "only what I don't know yet", export/import of
 progress, dark mode, and an optional cross-device sync key if you host the tiny endpoint
-yourself. It's one HTML file; nothing phones home.
+yourself. It's one HTML file; nothing phones home. Hosting it somewhere static with no
+endpoint (GitHub Pages, like the demo)? Build with `grindcards build --no-sync` to hide the
+sync-key controls.
 
 **Spaced repetition.** By default the app shows only the cards that are due. "Got it" sends a
 card back 1, 3, 8, 20, then 50 days later (capped at 90). "Again" keeps it in today's pile until

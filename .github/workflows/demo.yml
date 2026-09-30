@@ -1,0 +1,39 @@
+# Live demo: the starter deck, built from main, on GitHub Pages
+# (https://sitianlu.github.io/grindcards/). One-time setup: repo Settings → Pages →
+# Source: "GitHub Actions". Built with --no-sync: Pages is static, there is no sync
+# endpoint behind it, so the key controls are hidden and progress stays in the browser.
+name: demo
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Pillow draws the PWA icons; without it the app still builds, just iconless
+      - run: pip install -e . Pillow
+      - run: grindcards build src/grindcards/starter --no-sync -o site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

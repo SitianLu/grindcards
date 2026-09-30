@@ -467,6 +467,9 @@ footer{flex:none;display:flex;gap:10px;
   color:var(--ink2);font:inherit;font-size:13.5px;cursor:pointer
 }
 .langrow .lang.on{background:var(--ink);color:var(--card);border-color:var(--ink);font-weight:600}
+/* The hidden attribute must win over the display:flex rows set above (language row on a one-language deck,
+   sync controls in a --no-sync build); by default any author display rule beats it. */
+[hidden]{display:none !important}
 /* While mouse-dragging: don't let the browser treat it as a text selection */
 body.dragging,body.dragging *{cursor:grabbing !important;user-select:none !important}
 </style>
@@ -534,9 +537,9 @@ body.dragging,body.dragging *{cursor:grabbing !important;user-select:none !impor
   <div class="sh"><span data-t="menu.variants"></span> <span id="varN"></span></div>
   <div class="vhint" data-th="menu.variants_hint"></div>
   <div id="varList"></div>
-  <div class="sh" data-t="menu.sync"></div>
+  <div class="sh" id="syncSh" data-t="menu.sync"></div>
   <div class="row" id="syncRow"><span id="syncTxt">—</span><span class="rc" id="keyShow"></span></div>
-  <div class="krow">
+  <div class="krow" id="keyRow">
     <input id="keyIn" data-tp="menu.key_placeholder" autocapitalize="off"
            autocorrect="off" spellcheck="false" autocomplete="off">
     <button id="keySet" data-t="menu.connect"></button>
@@ -575,6 +578,7 @@ const I18N = __I18N__;
 const LANGS = __LANGS__;            // [[code, display name], ...]
 const DEFAULT_LANG = __LANG__;
 const BUILD = __BUILD__;            // {lang: stamp}
+const SYNC = __SYNC__;              // false = built with --no-sync: no endpoint behind this host
 const HTML_LANG = {zh: 'zh-CN'};
 const LKEY = 'gc_lang';
 function pickLang(){
@@ -1599,7 +1603,10 @@ function readKey(){
   if(k){ try{ localStorage.setItem(SKEY, k); }catch(e){} keyCookie(k); }
   return k;
 }
-let SK = readKey();
+/* Built with --no-sync (a static demo, a plain GitHub Pages deck): there is no /api/state behind this host, so a key
+   could only ever produce "sync failed". No key is read, none is pinned into the URL, and the key controls are hidden.
+   Export/import stay — they are how progress moves between devices without a server. */
+let SK = SYNC ? readKey() : '';
 
 /* [The key MUST stay in the address bar at all times] This is the real cause of "my progress is gone again":
    when the key comes out of localStorage, the address bar is clean; "Add to Home Screen" at that moment
@@ -1619,6 +1626,7 @@ const canSync = ()=> !!SK && /^https?:$/.test(location.protocol);
 /* Manual reconnect: the fallback for a new device, a cleared cache, or a home-screen app that is a fresh jar.
    No need to dig up the original link; just paste the key in. */
 function setKey(k){
+  if(!SYNC) return false;
   k = String(k||'').trim().toLowerCase().replace(/^.*[#&]k=/, '').slice(0, 32);
   if(!/^[a-f0-9]{32}$/.test(k)) return false;
   SK = k;
@@ -1629,7 +1637,11 @@ function setKey(k){
   return true;
 }
 
-let syncMsg = T(SK ? 'sync.pending' : 'sync.off');
+let syncMsg = T(SK ? 'sync.pending' : SYNC ? 'sync.off' : 'sync.local');
+if(!SYNC){
+  ['#keyRow', '#syncLink', '#copyKey', '#keyShow'].forEach(s => el(s).hidden = true);
+  el('#syncSh').dataset.t = 'menu.progress';   // applyI18n (below) labels it
+}
 function setSync(m){ syncMsg = m; const n = document.getElementById('syncTxt'); if(n) n.textContent = m; }
 
 function snapshot(){ return {v:1, cards:S.cards||{}, todoM:S.todoM||{}, prefs:prefsOut(), view:viewOut()}; }
@@ -1841,7 +1853,7 @@ if(canSync()) sync();
    That kind of silent degradation is exactly the hardest class of problem to notice, so say it explicitly. */
 const STANDALONE = navigator.standalone === true ||
                    matchMedia('(display-mode: standalone)').matches;
-if(STANDALONE && !SK && /^https?:$/.test(location.protocol)){
+if(STANDALONE && SYNC && !SK && /^https?:$/.test(location.protocol)){
   el('#nokey').classList.add('on');
   // [Do NOT auto-dismiss] This banner is the only thing that explains "why is everything blank".
   // Hiding itself after 12 seconds amounts to leaving the user guessing at an empty app. Keep it until they act on it.

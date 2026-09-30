@@ -213,8 +213,11 @@ def _sidecars(outdir: Path, version: str, name: str, desc: str, lang: str):
     return written
 
 
-def render_app(deck, built: dict, out: Path):
-    """built: {lang: (cards, listed_variants)} from assemble()."""
+def render_app(deck, built: dict, out: Path, sync: bool = True):
+    """built: {lang: (cards, listed_variants)} from assemble().
+
+    sync=False is for hosts with no sync endpoint behind them (a static demo, GitHub Pages):
+    the app reads no sync key, hides the key controls and never shows the "not synced" banner."""
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
     decks, variants = {}, {}
@@ -238,6 +241,7 @@ def render_app(deck, built: dict, out: Path):
         "__APPNAME__":   html.escape(deck.name),
         "__ICON__":      _icon_data_uri(),
         "__BUILD__":     js({l: t(l, "build.stamp", n=n, stamp=stamp) for l in built}),
+        "__SYNC__":      json.dumps(bool(sync)),
         "/*__HL_LIGHT__*/": CSS_LIGHT,
         "/*__HL_DARK__*/":  CSS_DARK,
     }.items():

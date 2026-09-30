@@ -34,7 +34,7 @@ def test_verify_and_build(deck_dir, tmp_path):
     info = render_app(deck, built, out)
     html = out.read_text(encoding="utf-8")
     assert info["cards"] == len(titles["en"])
-    for placeholder in ("__DECKS__", "__I18N__", "__LANGS__", "__LANG__", "__APPNAME__"):
+    for placeholder in ("__DECKS__", "__I18N__", "__LANGS__", "__LANG__", "__APPNAME__", "__SYNC__"):
         assert placeholder not in html
     assert (out.parent / "sw.js").exists() and (out.parent / "manifest.webmanifest").exists()
 

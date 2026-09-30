@@ -3,7 +3,7 @@
 
     grindcards init  mydeck [--lang en zh] [--name "My Deck"] [--starter]
     grindcards verify [deck]
-    grindcards build  [deck] [-o build/]        # offline web app + PWA files
+    grindcards build  [deck] [-o build/] [--no-sync]   # offline web app + PWA files
     grindcards pdf    [deck] [-o build/] [--lang en]
     grindcards serve  [deck] [-p 8000]          # build, then open in a browser
 """
@@ -79,7 +79,7 @@ def cmd_build(a):
         _die("not building a deck that fails verification (use --force to override)", 1)
     out = Path(a.out) if a.out else deck.root / "build"
     out.mkdir(parents=True, exist_ok=True)
-    info = render_app(deck, built, out / "index.html")
+    info = render_app(deck, built, out / "index.html", sync=not a.no_sync)
     print(f"→ {out / 'index.html'}  ({info['bytes'] / 1024:.0f} KB, {info['cards']} cards, "
           f"languages: {', '.join(info['langs'])})")
     if a.pdf:
@@ -165,6 +165,9 @@ def main(argv=None):
     p.add_argument("--lang", help="language for the PDF (default: deck default)")
     p.add_argument("-v", "--verbose", action="store_true", help="print the full verification report")
     p.add_argument("--force", action="store_true", help="build even if verification fails")
+    p.add_argument("--no-sync", action="store_true",
+                   help="for hosts without the sync endpoint (static demo, GitHub Pages): "
+                        "hide the sync-key controls; export/import still work")
     p.set_defaults(fn=cmd_build)
 
     p = sub.add_parser("pdf", help="render the printable PDF (needs `pip install grindcards[render]`)")
