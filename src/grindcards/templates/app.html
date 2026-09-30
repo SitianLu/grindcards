@@ -271,6 +271,7 @@ footer{flex:none;display:flex;gap:10px;
 }
 .act:active{transform:scale(.96)}
 .act.good{background:#0f766e;border-color:#0f766e;color:#fff}
+.act small{font-size:12px;font-weight:500;opacity:.78}
 @media (prefers-color-scheme: dark){.act.good{background:#12857b;border-color:#12857b}}
 
 /* ── sheet ── */
@@ -485,9 +486,9 @@ body.dragging,body.dragging *{cursor:grabbing !important;user-select:none !impor
     <div class="card" id="card"></div>
     <div class="card gone" id="card2"></div>
     <div class="done" id="done">
-      <h2 data-t="done.title"></h2>
+      <h2 id="donetitle"></h2>
       <p id="donetxt"></p>
-      <button class="wide" style="max-width:260px" id="again" data-t="done.again"></button>
+      <button class="wide" style="max-width:260px" id="again"></button>
     </div>
   </div>
   <footer>
@@ -552,6 +553,7 @@ body.dragging,body.dragging *{cursor:grabbing !important;user-select:none !impor
     <button id="impSet" data-t="menu.import"></button>
   </div>
   <div class="sh" data-t="menu.options"></div>
+  <div class="row" id="onlyDue"><span id="dueTxt"></span><span class="chk" style="margin-left:auto">✓</span></div>
   <div class="row" id="onlyUnknown"><span data-t="menu.only_unknown"></span><span class="chk" style="margin-left:auto">✓</span></div>
   <div class="row" id="shuffleRow"><span data-t="menu.shuffle"></span><span class="chk" style="margin-left:auto">✓</span></div>
   <div class="row" id="wrapRow"><span data-t="menu.wrap"></span><span class="chk" style="margin-left:auto">✓</span></div>
@@ -634,14 +636,14 @@ const store={
    [wrap (code soft-wrap) is deliberately NOT synced] it's a function of screen width, not of intent:
    on for a narrow phone, off for a wide desktop; syncing it means every adjustment on one device breaks the other. */
 let S = Object.assign({cards:{},todoM:{},secs:[],kinds:[],onlyTodo:false,
-                       onlyUnknown:false,shuffled:false,wrap:true,prefsAt:0,
+                       onlyUnknown:false,onlyDue:true,shuffled:false,wrap:true,prefsAt:0,
                        seed:0,viewCard:'',viewAt:0}, store.get());
 
 /* Preferences are replaced as a whole block (unlike cards, which merge entry by entry) — they're interrelated,
    and picking the newest of each separately would assemble a combination nobody ever set. One timestamp for the block; newest wins. */
 // seed and shuffled must travel together: syncing "shuffle is on" without syncing the seed means
 // the two devices each shuffle their own way and the orders still don't match.
-const PREF_KEYS = ['secs','kinds','onlyTodo','onlyUnknown','shuffled','seed'];
+const PREF_KEYS = ['secs','kinds','onlyTodo','onlyUnknown','onlyDue','shuffled','seed'];
 function prefsOut(){
   const o = {t: S.prefsAt || 0};
   PREF_KEYS.forEach(k => o[k] = S[k]);
@@ -691,10 +693,46 @@ function hydrate(){
 hydrate();
 document.body.classList.toggle('wrap', S.wrap!==false);
 
+/* ---------- spaced repetition ----------
+   Two buttons, so no ease factor to tune: "got it" walks an interval ladder (1d → 3d → 8d → 20d → 50d, capped),
+   "again" drops the card to interval 0 and makes it due right away. The schedule rides on the card entry itself —
+   {k, t, i: interval in days, d: due time in ms} — so the per-entry newest-wins merge (app, sync server,
+   export/import) carries it with no change: a review is one new entry with a new t, like any other mark.
+   Days roll over at 04:00 local time: a card reviewed at 1am is still "yesterday's" review, so it doesn't come
+   back a whole day later than the one reviewed at 11pm. */
+const DAY = 864e5, ROLL = 4 * 36e5, MAX_IVL = 90;
+function dayStart(ts){ const d = new Date(ts - ROLL); d.setHours(0,0,0,0); return d.getTime() + ROLL; }
+/* Entries written before scheduling existed ({k, t} only): a "got it" counts as a 1-day interval from the day it
+   was marked, so an old deck opens with those cards due again instead of silently hiding them. */
+function dueAt(e){
+  if(!e) return 0;                                  // never reviewed: due
+  if(e.d !== undefined) return Number(e.d) || 0;
+  return e.k ? dayStart(Number(e.t) || 0) + DAY : 0;
+}
+const isDue = i => { const c = CARDS[i]; return !!c && dueAt(S.cards[c.t]) <= now(); };
+function nextIvl(e){
+  if(!e || !e.k) return 1;                          // new or lapsed: tomorrow
+  return Math.min(MAX_IVL, Math.round((Number(e.i) || 1) * 2.5));
+}
+/* "later today" / "tomorrow" / "in 8 days", counted in rolled-over days, not 24h spans */
+function relDay(ts){
+  const n = Math.round((dayStart(ts) - dayStart(now())) / DAY);
+  return n <= 0 ? T('due.today') : n === 1 ? T('due.tomorrow') : T('due.in_days', {n});
+}
+
 /* Un-marking "got it" must still leave a k:0 tombstone, otherwise the old k:1 pushes it back on merge */
 function setKnown(i, on){
   const t = CARDS[i] && CARDS[i].t; if(!t) return;
-  S.cards[t] = {k: on?1:0, t: now()};
+  const ts = now(), prev = S.cards[t];
+  if(on){
+    // Reviewing ahead of schedule leaves the schedule alone. Otherwise one card tapped "got it" three times
+    // in a row (or re-read during "review ahead") would jump 1d → 3d → 8d without a single day passing.
+    if(prev && prev.k && dueAt(prev) > ts){ known.add(i); return; }
+    const iv = nextIvl(prev);
+    S.cards[t] = {k: 1, t: ts, i: iv, d: dayStart(ts) + iv * DAY};
+  } else {
+    S.cards[t] = {k: 0, t: ts, i: 0, d: ts};
+  }
   on ? known.add(i) : known.delete(i);
 }
 function setTodo(lc, on){
@@ -714,15 +752,28 @@ const savePrefs = ()=>{ S.prefsAt = now(); save(); };
 
 /* ---------- deck ---------- */
 let deck=[], pos=0, flipped=false, busy=false;
+/* "Review ahead" from the caught-up screen: ignore the due filter until the next reload or until the filter is
+   toggled. Deliberately not a pref — turning due-only off for good because of one early session would mean
+   tomorrow's review quietly shows the whole deck again. */
+let ahead = false;
 
-function buildDeck(keepCurrent){
-  const cur = deck[pos];
+/* The cards the filters select, before the due filter: the pool that "due now" and "next review" are counted in. */
+function scopeIds(){
   let ids = CARDS.map((c,i)=>i);
   if(S.kinds.length) ids = ids.filter(i=>S.kinds.includes(CARDS[i].k));
   if(S.secs.length) ids = ids.filter(i=>S.secs.includes(CARDS[i].s));
   if(S.onlyUnknown) ids = ids.filter(i=>!known.has(i));
   if(S.onlyTodo)    ids = ids.filter(i=>todo.has(CARDS[i].lc));
   if(!ids.length){ ids = CARDS.map((c,i)=>i).filter(i=>!S.secs.length||S.secs.includes(CARDS[i].s)); }
+  return ids;
+}
+
+function buildDeck(keepCurrent){
+  const cur = deck[pos];
+  let ids = scopeIds();
+  // Unlike the filters above, an empty result here is NOT widened back out: nothing due is the good outcome,
+  // and the caught-up screen says so (see paint).
+  if(S.onlyDue && !ahead) ids = ids.filter(isDue);
   // [Shuffle with a seed, not Math.random] same seed + same set of cards = same order,
   // so "the order" only needs a single integer synced, not a whole index array —
   // and an index array goes stale anyway: a new card added to the deck shifts every index after it.
@@ -942,7 +993,7 @@ function bindDeep(root){
    rather than overriding the user's filters. */
 function goToCard(idx){
   let i = deck.indexOf(idx);
-  if(i < 0){ deck.splice(pos+1, 0, idx); i = pos+1; }
+  if(i < 0){ deck.splice(pos+1, 0, idx); i = deck.indexOf(idx); }   // an empty (caught-up) deck puts it at 0, not 1
   pos = i; flipped = false; shown = 0;
   doneBox.classList.remove('on');
   paint(); noteView();
@@ -984,7 +1035,9 @@ function renderFace(root, idx, back){
 }
 
 function paint(){
-  if(!deck.length){ return; }
+  if(!deck.length){ caughtUp(); return; }
+  // cards came due while the caught-up screen was up (a sync, a new day): get it out of the way
+  if(doneBox.dataset.mode === 'ahead') doneBox.classList.remove('on');
   renderFace(card, deck[pos], flipped);
   paintChrome();
 }
@@ -1003,6 +1056,10 @@ function paintChrome(){
   p.style.background = (isP && !flipped) ? 'var(--mute)' : c.c;
   el('#navPrev').disabled = pos <= 0;
   el('#navNext').disabled = pos >= deck.length - 1;
+  // Say on the button when the card comes back — the only place the schedule is visible while drilling.
+  // Nothing when it isn't due: "got it" then leaves the schedule as it is (see setKnown).
+  const e = S.cards[c.t], ivl = dueAt(e) <= now() ? nextIvl(e) : 0;
+  el('#yes').innerHTML = T('got_it') + (ivl ? `<small>${T('ivl', {n: ivl})}</small>` : '');
 }
 
 /* Animation wrap-up: restore both layers to a known state, idle layer back to display:none.
@@ -1044,7 +1101,7 @@ function settleIn(ms){
    dropped, the card is parked out of sight forever. Force a reflow instead: read offsetWidth once in the same task
    so the previous line lands immediately, then write the end state directly on the next line — no dependence on a callback ever being scheduled. */
 function flip(){
-  if(busy) return;
+  if(busy || !deck.length) return;
   busy = true;
   const out = card, inc = other(), nf = !flipped;
   // paint first: inc is already turned edge-on to the user and invisible, so painting can take as long as it likes
@@ -1074,7 +1131,7 @@ function flip(){
 }
 
 function go(dir){
-  if(busy) return;
+  if(busy || !deck.length) return;
   const next = pos + dir;
   if(next<0 || next>=deck.length){
     card.style.transition='transform .16s'; card.style.transform=`translateX(${dir*-14}px)`;
@@ -1102,12 +1159,43 @@ function go(dir){
   settleIn(280);
 }
 
-function finish(){
+/* Soonest due time among the cards the filters select, and how many come back that same day */
+function nextReview(){
+  const ds = scopeIds().map(i=>dueAt(S.cards[CARDS[i].t])).filter(d=>d > now());
+  if(!ds.length) return null;
+  const d = Math.min(...ds), day = dayStart(d);
+  return {when: relDay(d), n: ds.filter(x=>dayStart(x) === day).length};
+}
+
+/* The done box has two jobs: end of a round, and "nothing is due" (the deck came out empty).
+   Its button does the matching thing — go round again, or review ahead of schedule. */
+function showDone(title, text, btn, mode){
+  el('#donetitle').textContent = title;
+  el('#donetxt').textContent = text;
+  el('#again').textContent = btn;
+  doneBox.dataset.mode = mode;
   doneBox.classList.add('on');
-  el('#donetxt').textContent = T('done.text', {k: known.size, n: CARDS.length}) + (S.onlyUnknown ? T('done.text_unknown') : '');
+}
+
+function finish(){
+  let txt = T('done.text', {k: known.size, n: CARDS.length}) + (S.onlyUnknown ? T('done.text_unknown') : '');
+  if(S.onlyDue){
+    const d = scopeIds().filter(isDue).length, nx = nextReview();
+    txt += d ? T('done.text_due', {d}) : nx ? T('done.text_next', nx) : '';
+  }
+  showDone(T('done.title'), txt, T('done.again'), 'round');
+}
+
+function caughtUp(){
+  const nx = nextReview();
+  showDone(T('due.none_title'), nx ? T('due.none_text', nx) : '', T('due.ahead'), 'ahead');
+  el('#hsec').textContent = ''; el('#prog').style.width = '0%';
+  el('#hcnt').textContent = T('known_count', {k: known.size, n: CARDS.length});
+  el('#navPrev').disabled = el('#navNext').disabled = true;
 }
 
 function mark(ok){
+  if(!deck.length) return;
   shown = 0;
   setKnown(deck[pos], ok); save();
   if(pos>=deck.length-1){ paint(); finish(); } else go(1);
@@ -1376,6 +1464,8 @@ function renderSecs(){
     tl.appendChild(r);
   });
   renderVars();
+  el('#dueTxt').textContent = T('menu.only_due', {d: scopeIds().filter(isDue).length});
+  el('#onlyDue').querySelector('.chk').classList.toggle('on',S.onlyDue);
   el('#onlyUnknown').querySelector('.chk').classList.toggle('on',S.onlyUnknown);
   el('#shuffleRow').querySelector('.chk').classList.toggle('on',S.shuffled);
   el('#wrapRow').querySelector('.chk').classList.toggle('on',S.wrap!==false);
@@ -1449,6 +1539,8 @@ el('#copyTodo').onclick=()=>{
   try{ navigator.clipboard.writeText(txt).then(done, ()=>prompt(T('menu.copy_manual'), txt)); }
   catch(e){ prompt(T('menu.copy_manual'), txt); }
 };
+el('#onlyDue').onclick=()=>{S.onlyDue=!S.onlyDue;ahead=false;savePrefs();buildDeck(false);flipped=false;shown=0;
+  doneBox.classList.remove('on');paint();renderSecs();};
 el('#onlyUnknown').onclick=()=>{S.onlyUnknown=!S.onlyUnknown;savePrefs();buildDeck(false);flipped=false;
   doneBox.classList.remove('on');paint();renderSecs();};
 el('#shuffleRow').onclick=()=>{S.shuffled=!S.shuffled;if(S.shuffled)S.seed=newSeed();savePrefs();buildDeck(false);flipped=false;
@@ -1461,7 +1553,8 @@ el('#shuffle').onclick=()=>{S.shuffled=true;S.seed=newSeed();savePrefs();buildDe
   doneBox.classList.remove('on');paint();};
 el('#yes').onclick=()=>mark(true);
 el('#no').onclick=()=>mark(false);
-el('#again').onclick=()=>{doneBox.classList.remove('on');buildDeck(false);flipped=false;paint();};
+el('#again').onclick=()=>{if(doneBox.dataset.mode==='ahead')ahead=true;
+  doneBox.classList.remove('on');buildDeck(false);flipped=false;paint();};
 
 /* ---------- cross-device sync ----------
    The key is read from the URL's #k=… and stored in localStorage and a cookie; it stays in the address bar (see pinKey).
@@ -1632,8 +1725,10 @@ function flush(){
   }catch(e){}
 }
 document.addEventListener('visibilitychange', ()=>{
-  if(document.visibilityState === 'hidden') flush();
-  else if(canSync()) sync();                 // on coming back, first check what the other devices drilled
+  if(document.visibilityState === 'hidden'){ flush(); return; }
+  // A home-screen app can sit on "nothing due" for days without a reload; coming back is when the day may have rolled over
+  if(!deck.length){ buildDeck(false); paint(); }
+  if(canSync()) sync();                      // on coming back, first check what the other devices drilled
 });
 addEventListener('pagehide', flush);
 

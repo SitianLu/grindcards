@@ -18,3 +18,15 @@ jobs:
       - run: pytest -q
       - run: grindcards verify src/grindcards/starter
       - run: grindcards build src/grindcards/starter -o /tmp/out
+  app:
+    # Browser regression suite (tests/test_app.py): the built app driven in Chromium.
+    # One Python is enough — this tests the page, not the interpreter.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e '.[render]' pytest
+      - run: python -m playwright install --with-deps chromium
+      - run: pytest -q tests/test_app.py

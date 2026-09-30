@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "grindcards"
-version = "0.1.0"
+version = "0.2.0"
 description = "Coding-interview flashcards you build with your AI agent — from the problems you got wrong. Every solution is executed on every build."
 readme = "README.md"
 license = { text = "AGPL-3.0-only" }
