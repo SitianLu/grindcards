@@ -123,4 +123,6 @@ obligations are available — open an issue.
 Starter-deck content (`src/grindcards/starter`):
 [CC BY-NC-SA 4.0](src/grindcards/starter/LICENSE) — copy it, remix it, don't sell it.
 Problem titles and numbers refer to [LeetCode](https://leetcode.com); statements and
-examples are written from scratch.
+examples are written from scratch. GrindCards is an independent project, not affiliated
+with or endorsed by LeetCode. Cards you write with the skill follow the same rule: the
+statement in your own words and your own example, never LeetCode's text or sample I/O.
